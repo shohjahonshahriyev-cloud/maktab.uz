@@ -1,0 +1,430 @@
+{
+  "users": [
+    {
+      "user": "admin",
+      "pass": "2024",
+      "role": "admin",
+      "name": "Tizim Adminstratori",
+      "class": "Boshqaruv",
+      "score": 0,
+      "testsTaken": 0
+    },
+    {
+      "name": "shohjahon shahriyev",
+      "class": "11-A",
+      "user": "durdona",
+      "pass": "2025",
+      "role": "student",
+      "subject": "",
+      "score": 10,
+      "testsTaken": 1,
+      "completedTests": {
+        "math": 1777145070973
+      }
+    },
+    {
+      "name": "shohjahon shahriyev",
+      "class": "11-B",
+      "user": "durdona1",
+      "pass": "2025",
+      "role": "student",
+      "subject": "",
+      "score": 14,
+      "testsTaken": 1,
+      "completedTests": {
+        "math": 1777153895382
+      }
+    },
+    {
+      "name": "shohjahon shahriyev",
+      "class": "Ona tili o'qituvchisi",
+      "user": "durdona2",
+      "pass": "2025",
+      "role": "teacher",
+      "subject": "ona-tili",
+      "score": 0,
+      "testsTaken": 0
+    },
+    {
+      "name": "durdona shaxriyeva",
+      "class": "9-A",
+      "user": "durdona3",
+      "pass": "2025",
+      "role": "student",
+      "subject": "",
+      "score": 0,
+      "testsTaken": 0
+    }
+  ],
+  "appData": {
+    "news": [
+      {
+        "id": 1777151524458,
+        "title": "Sovg'alar seni kutmoqda ",
+        "text": "🎁 SOVG‘ALAR SENI KUTMOQDA! 🎁\n\nFaol bo‘l, bilim ol va sovg‘a yutib ol!\n\nBizning platformamizda eng faol va bilimli o‘quvchilar uchun maxsus sovg‘alar tayyorlangan:\n\n🎧 AirPods  \n⌚ Smart Watch  \n📚 Kitob to‘plami  \n💸 Pul mukofoti\n\nHar bir test, har bir natija va har bir harakat seni sovg‘aga yanada yaqinlashtiradi!\n\n🏆 Reytingda yuqoriga ko‘taril  \n📈 Bilimingni oshir  \n🎯 Sovrinli o‘rinlarni egalla\n\nBugunoq platformaga qo‘shil va o‘z imkoniyatingni ko‘rsat!\n\n🚀 G‘oliblar safida aynan sen bo‘lishing mumkin!",
+        "tag": "Yangilik",
+        "image": "/uploads/1777151523456.jpg",
+        "type": "image",
+        "views": 0,
+        "date": "26 Aprel, 2026"
+      },
+      {
+        "id": 1777146133805,
+        "title": "🎉 24-MAKTAB RASMIY SAYTI ISHGA TUSHDI!",
+        "text": "Endilikda 24-maktabimiz yanada zamonaviy bosqichga chiqdi! 📱💻\nMaktabimizning rasmiy sayti ishga tushirildi va barchaga qulay imkoniyatlar yaratildi.\n\n🔹 O‘quvchilar uchun foydali ma’lumotlar\n🔹 O‘qituvchilar va dars jadvali\n🔹 Yangiliklar va e’lonlar\n🔹 Iqtidorli o‘quvchilar bo‘limi\n🔹 Online aloqa va murojaatlar\n\nSayt orqali siz maktab hayotidagi barcha yangiliklardan tez va oson xabardor bo‘lishingiz mumkin.\n\n🌐 Sayt manzili: two4-maktab.onrender.com\n\n24-maktab — bilim va rivojlanish sari! 🚀",
+        "tag": "Yangilik",
+        "image": "/uploads/1777146133347.png",
+        "type": "image",
+        "views": 6,
+        "date": "26 Aprel, 2026"
+      }
+    ],
+    "subjects": [
+      {
+        "id": "ona-tili",
+        "name": "Ona tili",
+        "icon": "fa-book",
+        "questions": []
+      },
+      {
+        "id": "adabiyot",
+        "name": "Adabiyot",
+        "icon": "fa-book-open",
+        "questions": []
+      },
+      {
+        "id": "math",
+        "name": "Matematika",
+        "icon": "fa-calculator",
+        "questions": [
+          {
+            "q": "20+20*5=?",
+            "options": [
+              "bilmayman",
+              "33",
+              "120",
+              "125"
+            ],
+            "correct": 2
+          }
+        ]
+      },
+      {
+        "id": "physics",
+        "name": "Fizika",
+        "icon": "fa-atom",
+        "questions": []
+      },
+      {
+        "id": "kimyo",
+        "name": "Kimyo",
+        "icon": "fa-flask",
+        "questions": []
+      },
+      {
+        "id": "biologiya",
+        "name": "Biologiya",
+        "icon": "fa-dna",
+        "questions": []
+      },
+      {
+        "id": "history",
+        "name": "Tarix",
+        "icon": "fa-landmark",
+        "questions": []
+      },
+      {
+        "id": "english",
+        "name": "Ingliz tili",
+        "icon": "fa-language",
+        "questions": []
+      },
+      {
+        "id": "rus-tili",
+        "name": "Rus tili",
+        "icon": "fa-language",
+        "questions": []
+      },
+      {
+        "id": "geografiya",
+        "name": "Geografiya",
+        "icon": "fa-earth-americas",
+        "questions": []
+      },
+      {
+        "id": "huquq",
+        "name": "Huquq",
+        "icon": "fa-gavel",
+        "questions": []
+      },
+      {
+        "id": "informatika",
+        "name": "Informatika",
+        "icon": "fa-laptop-code",
+        "questions": []
+      },
+      {
+        "id": "texnologiya",
+        "name": "Texnologiya",
+        "icon": "fa-gears",
+        "questions": []
+      },
+      {
+        "id": "tarbiya",
+        "name": "Tarbiya",
+        "icon": "fa-heart",
+        "questions": []
+      },
+      {
+        "id": "jismoniy-tarbiya",
+        "name": "Jismoniy tarbiya",
+        "icon": "fa-person-running",
+        "questions": []
+      },
+      {
+        "id": "musiqa",
+        "name": "Musiqa",
+        "icon": "fa-music",
+        "questions": []
+      }
+    ],
+    "gifts": [
+      {
+        "id": 1777152877374,
+        "name": "Air Pods",
+        "points": 300,
+        "icon": "fa-gift",
+        "image": "/uploads/1777152877181.webp"
+      },
+      {
+        "id": 1777132270373,
+        "name": "smart watch",
+        "points": 300,
+        "icon": "fa-gift",
+        "image": "/uploads/1777132270188.webp"
+      }
+    ],
+    "ranking": [
+      {
+        "name": "Abbos Aliev",
+        "score": 154
+      },
+      {
+        "name": "shohjahon shahriyev",
+        "score": 14
+      },
+      {
+        "name": "durdona shaxriyev",
+        "score": 1
+      }
+    ],
+    "director": {
+      "name": "Akbar Tohirov",
+      "role": "Maktab maslahatchisi",
+      "msg": "Assalomu alaykum, aziz o'quvchilar! Bilim olishdan aslo to'xtamang. Bizning platforma sizga yordam beradi.",
+      "image": "school_director_1776859699524.png"
+    },
+    "notifications": [
+      {
+        "id": 1777153895387,
+        "text": "Sizga +1 ball qo'shildi. Umumiy balingiz: 14",
+        "time": "26/04/2026 02:51:35",
+        "read": false,
+        "to": "durdona1"
+      },
+      {
+        "id": 1777147508239,
+        "text": "O'qituvchi shohjahon shahriyev sizga 5 ball qo'shdi!",
+        "time": "26/04/2026 01:05:08",
+        "read": false,
+        "role": "student",
+        "to": "durdona1"
+      },
+      {
+        "id": 1777147287021,
+        "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
+        "time": "26/04/2026 01:01:27",
+        "read": false,
+        "role": "student",
+        "to": "durdona"
+      },
+      {
+        "id": 1777133100948,
+        "text": "O'qituvchi shohjahon shahriyev sizga 3 ball qo'shdi!",
+        "time": "25/04/2026 21:05:00",
+        "read": false,
+        "role": "student",
+        "to": "durdona1"
+      },
+      {
+        "id": 1777129839305,
+        "text": "O'qituvchi shohjahon shahriyev sizga 5 ball qo'shdi!",
+        "time": "25/04/2026 20:10:39",
+        "read": false,
+        "role": "student",
+        "to": "durdona"
+      },
+      {
+        "id": 1777129253485,
+        "text": "O'qituvchi shohjahon shahriyev sizga 5 ball qo'shdi!",
+        "time": "25/04/2026 20:00:53",
+        "read": false,
+        "role": "student",
+        "to": "durdona1"
+      },
+      {
+        "id": 1777129229637,
+        "text": "O'qituvchi shohjahon shahriyev sizga 3 ball qo'shdi!",
+        "time": "25/04/2026 20:00:29",
+        "read": false,
+        "role": "student",
+        "to": "durdona"
+      },
+      {
+        "id": 1777065451440,
+        "text": "1",
+        "time": "2026-04-25 02:17",
+        "read": false
+      },
+      {
+        "id": 1776875758358,
+        "text": "🎁 SOVG'A ALMASHILDI: shohjahon shahriyev o'quvchisi o'zining 1 ballini \"uzum\" sovg'asiga almashtirdi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776875726982,
+        "text": "✅ TEST YAKUNLANDI: shohjahon shahriyev - Matematika: 1/1 natija ko'rsatdi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776875725310,
+        "text": "📝 TEST BOSHLANDI: shohjahon shahriyev o'quvchisi Matematika fanidan test yechishni boshladi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776874782334,
+        "text": "ha ",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776874662072,
+        "text": "🎁 SOVG'A ALMASHILDI: shohjahon shahriyev o'quvchisi o'zining 1 ballini \"uzum\" sovg'asiga almashtirdi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776874518530,
+        "text": "✅ TEST YAKUNLANDI: shohjahon shahriyev - Matematika: 1/1 natija ko'rsatdi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776874517222,
+        "text": "📝 TEST BOSHLANDI: shohjahon shahriyev o'quvchisi Matematika fanidan test yechishni boshladi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776873975160,
+        "text": "✅ TEST YAKUNLANDI: durdona shaxriyev - Matematika: 1/1 natija ko'rsatdi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776873973824,
+        "text": "📝 TEST BOSHLANDI: durdona shaxriyev o'quvchisi Matematika fanidan test yechishni boshladi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776873394075,
+        "text": "✅ TEST YAKUNLANDI: Abbos Aliev - Matematika: 1/1 natija ko'rsatdi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776873392740,
+        "text": "📝 TEST BOSHLANDI: Abbos Aliev o'quvchisi Matematika fanidan test yechishni boshladi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776873102785,
+        "text": "🎁 SOVG'A ALMASHILDI: Abbos Aliev o'quvchisi o'zining 1 ballini \"uzum\" sovg'asiga almashtirdi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776873059367,
+        "text": "✅ TEST YAKUNLANDI: Abbos Aliev - Matematika: 1/1 natija ko'rsatdi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776873056095,
+        "text": "📝 TEST BOSHLANDI: Abbos Aliev o'quvchisi Matematika fanidan test yechishni boshladi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776872898321,
+        "text": "✅ TEST YAKUNLANDI: Abbos Aliev - Matematika: 1/1 natija ko'rsatdi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776872894766,
+        "text": "📝 TEST BOSHLANDI: Abbos Aliev o'quvchisi Matematika fanidan test yechishni boshladi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776872515409,
+        "text": "🎁 SOVG'A ALMASHILDI: Abbos Aliev o'quvchisi o'zining 1 ballini \"uzum\" sovg'asiga almashtirdi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776872509082,
+        "text": "🎁 SOVG'A ALMASHILDI: Abbos Aliev o'quvchisi o'zining 1 ballini \"uzum\" sovg'asiga almashtirdi.",
+        "time": "Hozir",
+        "read": false
+      },
+      {
+        "id": 1776872145852,
+        "text": "🎁 SOVG'A ALMASHILDI: Abbos Aliev o'quvchisi o'zining 1 ballini \"uzum\" sovg'asiga almashtirdi.",
+        "time": "Hozir",
+        "read": false
+      }
+    ],
+    "visitors": 2161
+  },
+  "schedules": [
+    {
+      "class": "11-B",
+      "days": {
+        "dushanba": "Matematika\nOna tili\nIngliz tili\nTarix\nJismoniy tarbiya",
+        "seshanba": "Fizika\nMatematika\nOna tili\nInformatika\nGeografiya",
+        "chorshanba": "Kimyo\nIngliz tili\nMatematika\nBiologiya\nAdabiyot",
+        "payshanba": "Matematika\nFizika\nOna tili\nTarix\nTexnologiya",
+        "juma": "Ingliz tili\nBiologiya\nGeografiya\nTarbiya\nSport / To‘garak",
+        "shanba": "🎯 Aniq sinf (masalan 7-sinf, 9-sinf) uchun\n⏰ Soatlari bilan (08:30 – 15:00)\n📲 App uchun dizayn (jadval UI)\n🤖 AI avtomatik jadval tuzuvchi tizim"
+      }
+    },
+    {
+      "class": "11-A",
+      "days": {
+        "dushanba": "kimyo \nmatematika \nadabuyot",
+        "seshanba": "d\nd\nd\nd",
+        "chorshanba": "a\ns\nd\nd",
+        "payshanba": "d\nk\nhh\ntg",
+        "juma": "cyu\nrtiyo\nyjl\nyi",
+        "shanba": ""
+      }
+    }
+  ]
+}

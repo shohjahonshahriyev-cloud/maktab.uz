@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>24-Maktab | Premium Educational Platform</title>
+    
+    <!-- PWA & Mobile Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="24-Maktab">
+    <meta name="apple-mobile-web-app-title" content="24-Maktab">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="msapplication-navbutton-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+</head>
+
+<body>
+    <!-- Pull to Refresh Indicator -->
+    <div id="pull-refresh" class="pull-refresh">
+        <i class="fa-solid fa-arrows-rotate"></i>
+        <span>Yangilanmoqda...</span>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loader">
+            <div class="loader-text">Yuklanmoqda...</div>
+            <div class="loader-circle"></div>
+        </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-screen hidden">
+        <div class="login-container">
+            <div class="login-header">
+                <div style="position: relative; display: inline-block; margin-bottom: 20px;">
+                    <img src="logo.png" alt="Logo" style="width: 100px; height: 100px; object-fit: contain; filter: drop-shadow(0 10px 15px rgba(99,102,241,0.4));">
+                </div>
+                <h2 style="font-weight: 800; font-size: 2rem; margin-bottom: 5px; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">24-Maktab</h2>
+                <p style="color: var(--text-muted); font-size: 0.95rem;">Premium Ta'lim Platformasi</p>
+            </div>
+            <div class="login-form">
+                <div class="input-group">
+                    <i class="fa-solid fa-user"></i>
+                    <input type="text" id="username" placeholder="Login">
+                </div>
+                <div class="input-group">
+                    <i class="fa-solid fa-lock"></i>
+                    <input type="password" id="password" placeholder="Parol">
+                </div>
+                <button id="login-submit" class="login-btn" onclick="handleLogin()">Kirish</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Navbar -->
+    <nav class="top-navbar hidden">
+        <div class="nav-logo" style="display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.2rem; letter-spacing: -0.5px;">
+            <img src="logo.png" alt="Logo" style="height: 32px; width: 32px; object-fit: contain; border-radius: 6px; box-shadow: 0 4px 10px rgba(99,102,241,0.3);">
+            <span style="background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">24-Maktab</span>
+        </div>
+        <div class="nav-right">
+            <div id="user-balance" class="user-balance"
+                style="margin-right: 15px; display: flex; align-items: center; gap: 5px; background: rgba(34, 197, 94, 0.2); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(34, 197, 94, 0.3);">
+                <i class="fa-solid fa-coins" style="color: #22c55e;"></i>
+                <span id="header-score" style="font-weight: 600; font-size: 0.9rem; color: #22c55e;">0</span>
+            </div>
+            <button id="notif-btn" class="nav-profile-btn" onclick="navigateTo('notifications')"
+                style="margin-right: 15px; position: relative;">
+                <i class="fa-solid fa-bell"></i>
+                <span id="notif-badge" class="notif-badge hidden">0</span>
+            </button>
+            <button id="profile-btn" class="nav-profile-btn" onclick="navigateTo('profile')">
+                <i class="fa-solid fa-user-circle"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main id="app-content">
+        <!-- Sections will be injected here -->
+    </main>
+
+    <nav id="bottom-navbar" class="bottom-navbar hidden">
+        <!-- Will be injected dynamically -->
+    </nav>
+
+    <!-- Custom Modal -->
+    <div id="custom-modal" class="modal-overlay hidden">
+        <div class="glass-card modal-content">
+            <h3 id="modal-title">Tasdiqlash</h3>
+            <p id="modal-text"></p>
+            <div class="modal-actions">
+                <button id="modal-cancel" class="modal-btn cancel">Yo'q</button>
+                <button id="modal-confirm" class="modal-btn confirm">OK</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
