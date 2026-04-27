@@ -220,7 +220,7 @@ async function sendPushNotification(payload) {
     const subscriptions = db.subscriptions || [];
     
     const notificationPayload = JSON.stringify({
-        title: '24-Maktab',
+        title: 'Yangi xabar',
         body: payload.text || 'Yangi xabar keldi'
     });
 
