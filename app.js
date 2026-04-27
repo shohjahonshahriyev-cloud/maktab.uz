@@ -3,6 +3,34 @@ const API_BASE = '/api';
 const socket = io();
 
 let notifCount = 0;
+const notifSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+
+// iOS Audio Unlocker
+let audioUnlocked = false;
+function unlockAudio() {
+    if (audioUnlocked) return;
+    
+    // Play silent sound to unlock Audio context
+    notifSound.volume = 0;
+    notifSound.play().then(() => {
+        notifSound.pause();
+        notifSound.currentTime = 0;
+        notifSound.volume = 1;
+    }).catch(() => {});
+
+    // Speak empty string to unlock SpeechSynthesis context
+    if ('speechSynthesis' in window) {
+        const msg = new SpeechSynthesisUtterance("");
+        msg.volume = 0;
+        window.speechSynthesis.speak(msg);
+    }
+    
+    audioUnlocked = true;
+    document.removeEventListener('touchstart', unlockAudio);
+    document.removeEventListener('click', unlockAudio);
+}
+document.addEventListener('touchstart', unlockAudio, { once: true });
+document.addEventListener('click', unlockAudio, { once: true });
 
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -405,8 +433,6 @@ function initSocketListeners() {
         }
     });
 
-    const notifSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-
     const handleNewNotif = (notif) => {
         // Double check filter
         if (notif.role === 'admin' && !isAdmin) return;
@@ -415,7 +441,9 @@ function initSocketListeners() {
         updateNotifBadge();
         
         // Play notification sound
-        notifSound.play().catch(err => console.log("Sound play blocked:", err));
+        if (notifSound) {
+            notifSound.play().catch(err => console.log("Sound play blocked:", err));
+        }
 
         // Optional: Voice (Text-to-Speech)
         if ('speechSynthesis' in window) {
