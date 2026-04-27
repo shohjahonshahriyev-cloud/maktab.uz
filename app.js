@@ -43,11 +43,20 @@ function urlBase64ToUint8Array(base64String) {
     return outputArray;
 }
 
-async function initPushNotifications() {
+async function initPushNotifications(showFeedback = false) {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
         try {
             const registration = await navigator.serviceWorker.register('/sw.js');
             console.log('Service Worker registered');
+
+            // Request permission explicitly first if showFeedback is true
+            if (showFeedback) {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    showCustomAlert("Bildirishnomalarga ruxsat berilmadi.");
+                    return;
+                }
+            }
 
             const publicVapidKey = 'BJiXkGpzXU8RIM4Ca9AU2XqIiu2WFYGPVGUyY_Aw3yYLMCzJGPF0ZDCnO47fA1S8Uu5yBx4EUgvkVz3g889OUIg';
             const subscription = await registration.pushManager.subscribe({
@@ -61,8 +70,18 @@ async function initPushNotifications() {
                 headers: { 'Content-Type': 'application/json' }
             });
             console.log('Push Subscribed');
+            if (showFeedback) {
+                showCustomAlert("Bildirishnomalar muvaffaqiyatli yoqildi! Endi ilova yopiq bo'lganda ham xabarlar keladi.");
+            }
         } catch (error) {
             console.error('Push notification registration failed:', error);
+            if (showFeedback) {
+                showCustomAlert("Bildirishnomalarni yoqishda xatolik yuz berdi. Iltimos qayta urinib ko'ring.");
+            }
+        }
+    } else {
+        if (showFeedback) {
+            showCustomAlert("Sizning brauzeringiz bu funksiyani qo'llab-quvvatlamaydi.");
         }
     }
 }
@@ -381,7 +400,6 @@ async function handleLoginV2() {
 
             await fetchData();
             initSocketListeners();
-            initPushNotifications();
             updateHeaderScore();
             updateNotifBadge();
             renderBottomNav();
@@ -2500,6 +2518,9 @@ function renderProfile(container) {
             ` : ''}
 
             <div style="padding: 0 10px;">
+                <button onclick="initPushNotifications(true)" style="width: 100%; background: var(--accent-gradient); color: white; border: none; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-bell"></i> Bildirishnomalarni yoqish
+                </button>
                 <button class="logout-btn-new" onclick="handleLogout()" style="margin-top: 10px;">
                     <i class="fa-solid fa-right-from-bracket"></i> Tizimdan chiqish
                 </button>
@@ -2559,6 +2580,9 @@ function renderProfile(container) {
             </div>
 
             <div style="padding: 15px 25px;">
+                <button onclick="initPushNotifications(true)" style="width: 100%; background: var(--accent-gradient); color: white; border: none; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-bell"></i> Bildirishnomalarni yoqish
+                </button>
                 <button class="logout-btn-new" onclick="handleLogout()" style="margin: 0;">
                     <i class="fa-solid fa-right-from-bracket"></i> Tizimdan chiqish
                 </button>
@@ -2635,7 +2659,6 @@ window.onload = async () => {
             navbars.forEach(el => el.classList.remove('hidden'));
 
             initSocketListeners();
-            initPushNotifications();
             updateHeaderScore();
             updateNotifBadge();
             renderBottomNav();
