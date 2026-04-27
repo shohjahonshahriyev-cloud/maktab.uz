@@ -192,7 +192,7 @@ function renderBottomNav() {
                 <i class="fa-solid fa-paper-plane"></i>
                 <span>Xabarlar</span>
             </div>
-            <div class="nav-item ${currentSection === 'profile' ? 'active' : ''}" onclick="navigateTo('profile')" id="nav-profile">
+            <div class="nav-item ${currentSection === 'members' ? 'active' : ''}" onclick="navigateTo('members')" id="nav-members">
                 <i class="fa-solid fa-users"></i>
                 <span>Azolar</span>
             </div>
@@ -240,10 +240,42 @@ function renderBottomNav() {
     nav.innerHTML = html;
 }
 
-// Login Logic
-async function handleLogin() {
-    const userVal = document.getElementById('username').value;
-    const passVal = document.getElementById('password').value;
+// // Login Logic
+window.showLoginScreenV2 = () => {
+    document.getElementById('welcome-screen').classList.add('hidden');
+    document.getElementById('login-screen-v2').classList.remove('hidden');
+};
+
+window.showWelcomeScreen = () => {
+    document.getElementById('login-screen-v2').classList.add('hidden');
+    document.getElementById('welcome-screen').classList.remove('hidden');
+};
+
+window.togglePasswordV2 = () => {
+    const passInput = document.getElementById('password-v2');
+    const icon = document.querySelector('.toggle-pass-v2');
+    if (passInput.type === 'password') {
+        passInput.type = 'text';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    } else {
+        passInput.type = 'password';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    }
+};
+
+window.showForgotPassMessage = (event) => {
+    if (event) event.preventDefault();
+    showCustomAlert("Parolni tiklash uchun maktab maslahatchisiga uchrashing.");
+};
+
+async function handleLoginV2() {
+    const userVal = document.getElementById('username-v2').value;
+    const passVal = document.getElementById('password-v2').value;
+
+    if (!userVal || !passVal) {
+        showCustomAlert("Iltimos, login va parolni kiriting");
+        return;
+    }
 
     try {
         const response = await fetch(`${API_BASE}/login`, {
@@ -259,7 +291,6 @@ async function handleLogin() {
             isAdmin = foundUser.role === 'admin';
             isTeacher = foundUser.role === 'teacher';
 
-            // Map user data
             APP_DATA.user = {
                 name: foundUser.name,
                 class: foundUser.class,
@@ -270,9 +301,13 @@ async function handleLogin() {
                 completedTests: foundUser.completedTests || {}
             };
 
-            localStorage.setItem('userSession', JSON.stringify(foundUser));
+            // Save to session instead of localStorage if "Remember me" is not checked?
+            // Actually user said "always ask when site opens", so I won't auto-login anyway.
+            if (document.getElementById('remember-me-v2').checked) {
+                localStorage.setItem('userSession', JSON.stringify(foundUser));
+            }
 
-            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('login-screen-v2').classList.add('hidden');
             document.querySelectorAll('.top-navbar, #bottom-navbar').forEach(el => {
                 el.classList.remove('hidden');
             });
@@ -280,13 +315,15 @@ async function handleLogin() {
             await fetchData();
             initSocketListeners();
             updateHeaderScore();
-
+            updateNotifBadge();
             renderBottomNav();
+            
             if (isAdmin) currentSection = 'admin';
             else currentSection = 'home';
 
             renderSection();
-
+            
+            // UI adjustments
             const topProfileBtn = document.getElementById('profile-btn');
             if (topProfileBtn) {
                 if (isAdmin || isTeacher) {
@@ -298,11 +335,11 @@ async function handleLogin() {
                 }
             }
         } else {
-            showCustomAlert(result.message);
+            showCustomAlert("Login yoki parol xato!");
         }
     } catch (error) {
-        console.error("Login hatosi:", error);
-        showCustomAlert("Serverga ulanishda xatolik yuz berdi!");
+        console.error("Login xatosi:", error);
+        showCustomAlert("Server bilan bog'lanishda xato!");
     }
 }
 
@@ -333,10 +370,9 @@ function initSocketListeners() {
         if (notif.role === 'admin' && !isAdmin) return;
 
         APP_DATA.notifications.unshift(notif);
-        if (currentSection !== 'notifications') {
-            notifCount++;
-            updateNotifBadge();
-        } else {
+        updateNotifBadge();
+        
+        if (currentSection === 'notifications') {
             renderSection();
         }
     };
@@ -364,8 +400,19 @@ function updateHeaderScore() {
 
 function updateNotifBadge() {
     const badge = document.getElementById('notif-badge');
-    if (notifCount > 0) {
-        badge.innerText = notifCount;
+    const user = APP_DATA.user;
+    if (!user || !badge) return;
+    
+    const currentUser = user.user || user.username;
+    
+    const count = APP_DATA.notifications.filter(n => {
+        if (n.read) return false;
+        // Count if it's an announcement OR if it's for this specific user
+        return !n.to || n.to === currentUser;
+    }).length;
+
+    if (count > 0) {
+        badge.innerText = count;
         badge.classList.remove('hidden');
     } else {
         badge.classList.add('hidden');
@@ -415,20 +462,33 @@ async function handleLogout() {
     const quit = await showCustomConfirm("Chiqish", "Tizimdan chiqmoqchimisiz?");
     if (quit) {
         isAdmin = false;
-        // Clear inputs
-        document.getElementById('username').value = '';
-        document.getElementById('password').value = '';
+        isTeacher = false;
+        
+        // Clear session
+        localStorage.removeItem('userSession');
 
-        // Show login, hide app
-        document.getElementById('login-screen').classList.remove('hidden');
-        document.querySelectorAll('.top-navbar, .bottom-navbar').forEach(el => {
+        // Clear inputs
+        const u1 = document.getElementById('username');
+        const p1 = document.getElementById('password');
+        const u2 = document.getElementById('username-v2');
+        const p2 = document.getElementById('password-v2');
+        if (u1) u1.value = '';
+        if (p1) p1.value = '';
+        if (u2) u2.value = '';
+        if (p2) p2.value = '';
+
+        // Show Welcome Screen, hide everything else
+        document.getElementById('welcome-screen').classList.remove('hidden');
+        document.getElementById('login-screen-v2').classList.add('hidden');
+        document.querySelectorAll('.top-navbar, #bottom-navbar, .bottom-navbar').forEach(el => {
             el.classList.add('hidden');
         });
 
-        // Reset state
+        // Reset app content
+        const appContent = document.getElementById('app-content');
+        if (appContent) appContent.innerHTML = '';
+        
         currentSection = 'home';
-        const content = document.getElementById('app-content');
-        content.innerHTML = '';
     }
 }
 
@@ -445,18 +505,69 @@ function renderSection() {
         console.log("Rendering section:", section);
 
         switch (section) {
-            case 'home': renderHome(content); break;
-            case 'test': renderTest(content); break;
-            case 'gift': renderGift(content); break;
-            case 'ranking': renderRanking(content); break;
-            case 'profile': renderProfile(content); break;
-            case 'admin': renderAdmin(content); break;
-            case 'teacher': renderTeacher(content); break;
-            case 'messages': renderAdminMessages(content); break;
-            case 'notifications': renderNotifications(content); break;
-            case 'news-detail': renderNewsDetail(content); break;
-            case 'schedule': renderSchedule(content); break;
+            case 'home':
+                renderHome(content);
+                content.style.overflowY = 'hidden';
+                content.style.maxHeight = 'calc(100vh - 140px)';
+                break;
+            case 'teacher':
+                renderTeacher(content);
+                content.style.overflowY = 'hidden';
+                content.style.maxHeight = 'calc(100vh - 140px)';
+                break;
+            case 'test':
+                renderTest(content);
+                content.style.overflowY = 'auto';
+                content.style.maxHeight = 'none';
+                break;
+            case 'gift':
+                renderGift(content);
+                content.style.overflowY = 'auto';
+                content.style.maxHeight = 'none';
+                break;
+            case 'ranking':
+                renderRanking(content);
+                content.style.overflowY = 'auto';
+                content.style.maxHeight = 'none';
+                break;
+            case 'profile':
+                renderProfile(content);
+                content.style.overflowY = 'auto';
+                content.style.maxHeight = 'none';
+                break;
+            case 'admin':
+                renderAdmin(content);
+                content.style.overflowY = 'auto';
+                content.style.maxHeight = 'none';
+                break;
+            case 'messages':
+                renderAdminMessages(content);
+                content.style.overflowY = 'auto';
+                content.style.maxHeight = 'none';
+                break;
+            case 'notifications':
+                renderNotifications(content);
+                content.style.overflowY = 'auto';
+                content.style.maxHeight = 'none';
+                break;
+            case 'members':
+                renderMembers(content);
+                content.style.overflowY = 'auto';
+                content.style.maxHeight = 'none';
+                break;
+            case 'news-detail':
+                renderNewsDetail(content);
+                content.style.overflowY = 'auto';
+                content.style.maxHeight = 'none';
+                break;
+            case 'schedule':
+                renderSchedule(content);
+                content.style.overflowY = 'auto';
+                content.style.maxHeight = 'none';
+                break;
             default:
+                content.style.overflowY = 'auto';
+                content.style.maxHeight = 'none';
                 content.innerHTML = `<div style="text-align:center; padding:50px;">
                     <h3>Sahifa topilmadi: ${section}</h3>
                     <button class="buy-btn" onclick="navigateTo('home')">Bosh sahifaga qaytish</button>
@@ -474,76 +585,33 @@ function renderSection() {
 }
 
 function renderTeacher(container) {
-    container.innerHTML = `
-        <div class="section-title">
-            <span>O'qituvchi Paneli</span>
-        </div>
+    const classes = [...new Set(APP_DATA.users
+        .filter(u => u.role === 'student' && u.class)
+        .map(u => u.class)
+    )].sort();
 
-        <div id="teacher-view-container" class="fade-in">
-            <div class="glass-card fade-in" style="padding: 20px; margin-bottom: 20px; text-align: center; cursor: pointer; border: 1px solid var(--secondary);" onclick="renderAnalyticsView()">
-                <i class="fa-solid fa-chart-bar" style="font-size: 2rem; color: var(--secondary); margin-bottom: 10px;"></i>
-                <h3>Sinflar Analitikasi</h3>
-                <p style="font-size: 0.85rem; color: var(--text-muted);">O'zlashtirish grafiklarini ko'rish</p>
+    container.innerHTML = `
+        <div id="teacher-view-container" class="fade-in" style="display: flex; flex-direction: column; gap: 10px;">
+            <div class="glass-card fade-in" style="padding: 15px; margin-bottom: 0; text-align: center; cursor: pointer; border: 1px solid var(--secondary); display: flex; align-items: center; justify-content: center; gap: 15px;" onclick="renderAnalyticsView()">
+                <i class="fa-solid fa-chart-bar" style="font-size: 1.5rem; color: var(--secondary);"></i>
+                <div>
+                    <h3 style="font-size: 1rem; margin: 0;">Sinflar Analitikasi</h3>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">Grafiklarni ko'rish</p>
+                </div>
             </div>
-            <div class="glass-card fade-in" style="padding: 20px;">
-                <h3 style="margin-bottom: 15px; font-size: 1.1rem; text-align: center;">Sinflarni tanlang</h3>
-                <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
-                    <!-- 11-sinf -->
-                    <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border: 1px solid var(--primary); cursor: pointer; background: rgba(var(--primary-rgb), 0.1);" onclick="renderTeacherView('class-students', '11')">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: white;">11</div>
-                            <span style="font-size: 1.1rem; font-weight: 600;">11-sinflar</span>
+            
+            <div class="glass-card fade-in" style="padding: 12px; flex: 1;">
+                <h3 style="margin-bottom: 10px; font-size: 1rem; text-align: center;">Sinflarni tanlang</h3>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                    ${classes.length > 0 ? classes.map(cls => `
+                        <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid var(--primary); cursor: pointer; background: rgba(var(--primary-rgb), 0.1); margin-bottom: 0;" onclick="renderTeacherView('class-students', '${cls}')">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="width: 40px; height: 40px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: 800; color: white;">${cls.split('-')[0]}</div>
+                                <span style="font-size: 1rem; font-weight: 600;">${cls}-sinf</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-right" style="font-size: 0.8rem;"></i>
                         </div>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </div>
-                    <!-- 10-sinf -->
-                    <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border: 1px solid var(--primary); cursor: pointer; background: rgba(var(--primary-rgb), 0.1);" onclick="renderTeacherView('class-students', '10')">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: white;">10</div>
-                            <span style="font-size: 1.1rem; font-weight: 600;">10-sinflar</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </div>
-                    <!-- 9-sinf -->
-                    <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border: 1px solid var(--primary); cursor: pointer; background: rgba(var(--primary-rgb), 0.1);" onclick="renderTeacherView('class-students', '9')">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: white;">9</div>
-                            <span style="font-size: 1.1rem; font-weight: 600;">9-sinflar</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </div>
-                    <!-- 8-sinf -->
-                    <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border: 1px solid var(--primary); cursor: pointer; background: rgba(var(--primary-rgb), 0.1);" onclick="renderTeacherView('class-students', '8')">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: white;">8</div>
-                            <span style="font-size: 1.1rem; font-weight: 600;">8-sinflar</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </div>
-                    <!-- 7-sinf -->
-                    <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border: 1px solid var(--primary); cursor: pointer; background: rgba(var(--primary-rgb), 0.1);" onclick="renderTeacherView('class-students', '7')">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: white;">7</div>
-                            <span style="font-size: 1.1rem; font-weight: 600;">7-sinflar</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </div>
-                    <!-- 6-sinf -->
-                    <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border: 1px solid var(--primary); cursor: pointer; background: rgba(var(--primary-rgb), 0.1);" onclick="renderTeacherView('class-students', '6')">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: white;">6</div>
-                            <span style="font-size: 1.1rem; font-weight: 600;">6-sinflar</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </div>
-                    <!-- 5-sinf -->
-                    <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border: 1px solid var(--primary); cursor: pointer; background: rgba(var(--primary-rgb), 0.1);" onclick="renderTeacherView('class-students', '5')">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: white;">5</div>
-                            <span style="font-size: 1.1rem; font-weight: 600;">5-sinflar</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </div>
+                    `).join('') : '<p style="text-align:center; color:var(--text-muted); padding:20px;">Sinflar topilmadi</p>'}
                 </div>
             </div>
         </div>
@@ -566,31 +634,24 @@ async function renderTeacherView(view, param) {
     if (!container) return;
 
     if (view === 'classes') {
+        const classes = [...new Set(APP_DATA.users
+            .filter(u => u.role === 'student' && u.class)
+            .map(u => u.class)
+        )].sort();
+
         container.innerHTML = `
             <div class="glass-card fade-in" style="padding: 20px;">
                 <h3 style="margin-bottom: 15px; font-size: 1.1rem; text-align: center;">Sinflarni tanlang</h3>
                 <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
-                    <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border: 1px solid var(--primary-glow); cursor: pointer; background: rgba(var(--primary-rgb), 0.1);" onclick="renderTeacherView('class-students', '11')">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="width: 50px; height: 50px; background: var(--primary-glow); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800;">11</div>
-                            <span style="font-size: 1.1rem; font-weight: 600;">11-sinflar</span>
+                    ${classes.length > 0 ? classes.map(cls => `
+                        <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border: 1px solid var(--primary-glow); cursor: pointer; background: rgba(var(--primary-rgb), 0.1);" onclick="renderTeacherView('class-students', '${cls}')">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div style="width: 50px; height: 50px; background: var(--primary-glow); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800;">${cls.split('-')[0]}</div>
+                                <span style="font-size: 1.1rem; font-weight: 600;">${cls}-sinf</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-right"></i>
                         </div>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </div>
-                    <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border: 1px solid var(--primary-glow); cursor: pointer; background: rgba(var(--primary-rgb), 0.1);" onclick="renderTeacherView('class-students', '10')">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="width: 50px; height: 50px; background: var(--primary-glow); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800;">10</div>
-                            <span style="font-size: 1.1rem; font-weight: 600;">10-sinflar</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </div>
-                    <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border: 1px solid var(--primary-glow); cursor: pointer; background: rgba(var(--primary-rgb), 0.1);" onclick="renderTeacherView('class-students', '9')">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="width: 50px; height: 50px; background: var(--primary-glow); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800;">9</div>
-                            <span style="font-size: 1.1rem; font-weight: 600;">9-sinflar</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </div>
+                    `).join('') : '<p style="text-align:center; padding:20px; color:var(--text-muted);">Sinflar topilmadi</p>'}
                 </div>
             </div>
         `;
@@ -605,20 +666,20 @@ async function renderTeacherView(view, param) {
         await fetchData();
         const allUsers = APP_DATA.users || [];
 
-        // Robust filtering
+        // Exact filtering for specific classes (e.g., '11-A')
         const classStudents = allUsers.filter(u => {
             const isStudent = u.role && u.role.toString().toLowerCase() === 'student';
-            const belongsToGrade = u.class && u.class.toString().startsWith(param);
-            return isStudent && belongsToGrade;
+            const isExactClass = u.class && u.class.toString() === param;
+            return isStudent && isExactClass;
         });
 
-        console.log(`Filtered students for grade ${param}:`, classStudents.length);
+        console.log(`Filtered students for class ${param}:`, classStudents.length);
 
         container.innerHTML = `
             <div class="glass-card fade-in" style="padding: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <i class="fa-solid fa-arrow-left" style="cursor: pointer;" onclick="renderTeacherView('classes')"></i>
+                        <i class="fa-solid fa-arrow-left" style="cursor: pointer;" onclick="renderSection()"></i>
                         <h3 style="font-size: 1.1rem;">${param}-sinf o'quvchilari</h3>
                     </div>
                     <span style="font-size: 0.8rem; color: var(--text-muted);">${classStudents.length} ta o'quvchi</span>
@@ -684,10 +745,10 @@ async function addPointsToStudent(studentUsername) {
         if (response.ok) {
             await fetchData();
             showCustomAlert("Ball muvaffaqiyatli qo'shildi!");
-            // Extract grade number (e.g., "11" from "11-A") to maintain same view
-            const student = APP_DATA.users.find(u => u.user === studentUsername);
-            const grade = student.class ? student.class.match(/^\d+/)[0] : '';
-            renderTeacherView('class-students', grade);
+            // Use full class name to maintain the correct view (e.g., "11-A" instead of just "11")
+            const student = APP_DATA.users.find(u => (u.username || u.user) === studentUsername);
+            const className = student ? student.class : '';
+            renderTeacherView('class-students', className);
         } else {
             const data = await response.json();
             showCustomAlert(data.message || "Xatolik yuz berdi!");
@@ -782,11 +843,96 @@ function renderAdmin(container) {
                 </div>
             `).join('') : '<p>Hozircha a\'zolar yo\'q</p>'}
             <div style="text-align: center; padding-top: 10px;">
-                <button onclick="navigateTo('profile')" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer;">Hammasini ko'rish <i class="fa-solid fa-arrow-right"></i></button>
+                <button onclick="navigateTo('members')" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer;">Hammasini ko'rish <i class="fa-solid fa-arrow-right"></i></button>
             </div>
         </div>
     `;
 }
+
+function renderMembers(container) {
+    container.innerHTML = `
+        <div class="notif-premium-container fade-in">
+            <div class="profile-top-bar" style="margin-bottom: 25px;">
+                <i class="fa-solid fa-chevron-left" style="font-size: 1.2rem; cursor: pointer;" onclick="navigateTo('admin')"></i>
+                <span class="profile-title-new" style="font-size: 1.1rem;">A'zolar ro'yxati</span>
+                <div style="width: 24px;"></div>
+            </div>
+
+            <div class="notif-search-box" style="margin-bottom: 20px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Ism yoki login bo'yicha qidirish..." oninput="filterMembers(this.value)">
+            </div>
+
+            <div id="members-list-container" class="fade-in">
+                ${renderMembersList(APP_DATA.users)}
+            </div>
+        </div>
+    `;
+}
+
+function renderMembersList(usersList) {
+    if (!usersList || usersList.length === 0) return '<p style="text-align:center; padding: 40px; color: var(--text-muted);">A\'zolar topilmadi</p>';
+
+    return usersList.map(u => `
+        <div class="glass-card" style="padding: 15px; margin-bottom: 12px; border-radius: 20px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <h3 style="margin: 0; font-size: 1rem; color: var(--text-main);">${u.name}</h3>
+                    <span style="font-size: 0.75rem; color: var(--primary); background: rgba(99,102,241,0.1); padding: 2px 8px; border-radius: 6px; margin-top: 4px; display: inline-block;">
+                        ${u.role === 'teacher' ? 'O\'qituvchi' : u.role === 'admin' ? 'Admin' : u.class || 'Sinf belgilanmagan'}
+                    </span>
+                </div>
+                ${u.user !== 'admin' ? `
+                    <button onclick="deleteMember('${u.user}')" style="background: rgba(239,68,68,0.1); color: #ef4444; border: none; padding: 8px; border-radius: 10px; cursor: pointer;">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                ` : ''}
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05);">
+                <div>
+                    <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">Login:</span>
+                    <span style="font-size: 0.9rem; font-family: monospace; font-weight: 600;">${u.user}</span>
+                </div>
+                <div>
+                    <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">Parol:</span>
+                    <span style="font-size: 0.9rem; font-family: monospace; font-weight: 600;">${u.pass}</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 15px; font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">
+                <span><i class="fa-solid fa-star"></i> ${u.score || 0} ball</span>
+                <span><i class="fa-solid fa-list-check"></i> ${u.testsTaken || 0} test</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+window.filterMembers = (query) => {
+    const q = query.toLowerCase();
+    const filtered = APP_DATA.users.filter(u => 
+        u.name.toLowerCase().includes(q) || 
+        u.user.toLowerCase().includes(q)
+    );
+    document.getElementById('members-list-container').innerHTML = renderMembersList(filtered);
+};
+
+window.deleteMember = async (username) => {
+    const confirm = await showCustomConfirm("A'zoni o'chirish", `${username} logindagi a'zoni o'chirib tashlamoqchimisiz? Barcha natijalar yo'qoladi.`);
+    if (!confirm) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/users/${username}`, { method: 'DELETE' });
+        if (response.ok) {
+            await fetchData();
+            renderSection();
+            showCustomAlert("A'zo o'chirildi");
+        }
+    } catch (err) {
+        console.error("Failed to delete user", err);
+        showCustomAlert("O'chirishda xatolik yuz berdi");
+    }
+};
 
 function renderAdminForm(type, selectedSubId = null) {
     const container = document.getElementById('app-content');
@@ -1055,34 +1201,227 @@ async function sendAdminMsg() {
     }
 }
 
+let NOTIF_STATE = {
+    activeTab: 'admin',
+    currentView: 'list' // 'list' or notification ID
+};
+
 function renderNotifications(container) {
-    // Filter notifications based on user role
-    const visibleNotifs = APP_DATA.notifications.filter(n => {
-        // If it's a private message, check if it's for current user
-        if (n.to && n.to !== APP_DATA.user.user) return false;
+    const user = APP_DATA.user;
+
+    // Handle Detail View
+    if (NOTIF_STATE.currentView !== 'list') {
+        const notif = APP_DATA.notifications.find(n => n.id === NOTIF_STATE.currentView);
+        if (notif) {
+            renderNotificationDetail(container, notif);
+            return;
+        }
+        NOTIF_STATE.currentView = 'list';
+    }
+    
+    // Filter logic
+    const currentUser = user.user || user.username;
+    console.log("Current user for filtering:", currentUser);
+    
+    let filtered = APP_DATA.notifications.filter(n => {
+        const isAdminNotif = !n.to;
+        const isPrivateNotif = n.to === currentUser;
         
-        if (n.role === 'admin') return isAdmin;
-        return true;
+        if (NOTIF_STATE.activeTab === 'admin' && isAdminNotif) return true;
+        if (NOTIF_STATE.activeTab === 'private' && isPrivateNotif) return true;
+        
+        return false;
     });
 
+    console.log(`Filtered notifications for tab ${NOTIF_STATE.activeTab}:`, filtered.length);
+
+    const getIcon = (text) => {
+        const t = text.toLowerCase();
+        if (t.includes('ball')) return { icon: 'fa-star', cat: 'cat-star' };
+        if (t.includes('test')) return { icon: 'fa-book-open', cat: 'cat-book' };
+        if (t.includes('maktab') || t.includes('tizim')) return { icon: 'fa-bullhorn', cat: 'cat-megaphone' };
+        if (t.includes('murojaat')) return { icon: 'fa-circle-info', cat: 'cat-info' };
+        return { icon: 'fa-message', cat: 'cat-megaphone' };
+    };
+
     container.innerHTML = `
-        <div class="section-title">
-            <span>Bildirishnomalar</span>
-        </div>
-        <div class="notif-list">
-            ${visibleNotifs.length > 0 ? visibleNotifs.map(n => `
-                <div class="glass-card fade-in" style="margin-bottom: 15px; border-left: 4px solid ${n.read ? 'var(--glass-border)' : 'var(--primary)'};">
-                    <p style="font-size: 1rem; margin-bottom: 10px;">${n.text}</p>
-                    <span style="font-size: 0.75rem; color: var(--text-muted);"><i class="fa-regular fa-clock"></i> ${n.time}</span>
+        <div class="notif-premium-container fade-in">
+            <div class="section-title" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <span>Xabarlar</span>
+                <i class="fa-solid fa-filter" style="color: var(--primary); font-size: 1.1rem;"></i>
+            </div>
+
+            <div class="notif-tabs-container">
+                <button class="notif-tab-btn ${NOTIF_STATE.activeTab === 'admin' ? 'active' : ''}" onclick="switchNotifTab('admin')">
+                    <i class="fa-solid fa-bullhorn"></i> Maktab xabarlari
+                </button>
+                <button class="notif-tab-btn ${NOTIF_STATE.activeTab === 'private' ? 'active' : ''}" onclick="switchNotifTab('private')">
+                    <i class="fa-solid fa-comment-dots"></i> Mening xabarlarim
+                </button>
+            </div>
+
+            <div class="notif-list-new" style="margin-top: 10px;">
+                ${filtered.length > 0 ? filtered.map(n => {
+        const iconData = getIcon(n.text);
+        return `
+                        <div class="notif-item-premium fade-in" onclick="openNotification(${n.id})">
+                            <div class="notif-icon-box ${iconData.cat}">
+                                <i class="fa-solid ${iconData.icon}"></i>
+                            </div>
+                            <div class="notif-info">
+                                <span class="notif-sender">${NOTIF_STATE.activeTab === 'admin' ? 'Maktab Ma\'muriyati' : 'Tizim Bildirishi'}</span>
+                                <span class="notif-text-snippet">${n.text}</span>
+                            </div>
+                            <div class="notif-meta">
+                                ${isAdmin ? `<i class="fa-solid fa-trash" style="color: #ef4444; font-size: 0.9rem; cursor: pointer; margin-bottom: 5px;" onclick="deleteNotif(event, ${n.id})"></i>` : ''}
+                                <span class="notif-time">${n.time.split(' ')[0]}</span>
+                                ${!n.read ? '<div class="notif-unread-dot"></div>' : '<i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; color: #cbd5e1;"></i>'}
+                            </div>
+                        </div>
+                    `;
+    }).join('') : `
+                    <div style="text-align:center; padding: 60px 20px; color: var(--text-muted);">
+                        <i class="fa-solid fa-comment-slash" style="font-size: 3.5rem; margin-bottom: 20px; opacity: 0.3;"></i>
+                        <p style="font-size: 1.1rem; font-weight: 500;">Xabarlar topilmadi</p>
+                        <p style="font-size: 0.85rem; margin-top: 5px;">Boshqa bo'limni tekshirib ko'ring</p>
+                    </div>
+                `}
+            </div>
+            
+            ${filtered.length > 0 ? `
+                <div style="text-align: center; margin-top: 20px;">
+                    <span style="font-size: 0.85rem; color: var(--text-muted); cursor: pointer;" onclick="markAllNotifsRead()">
+                        <i class="fa-solid fa-check-double"></i> Barchasini o'qilgan deb belgilash
+                    </span>
                 </div>
-            `).join('') : `
-                <div style="text-align:center; padding: 50px 20px; color: var(--text-muted);">
-                    <i class="fa-solid fa-bell-slash" style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;"></i>
-                    <p>Hozircha xabarlar yo'q</p>
-                </div>
-            `}
+            ` : ''}
         </div>
     `;
+}
+
+// Helper functions for Notifications
+window.switchNotifTab = (tab) => {
+    NOTIF_STATE.activeTab = tab;
+    renderSection();
+};
+
+window.handleNotifSearch = (query) => {
+    NOTIF_STATE.searchQuery = query;
+    const content = document.getElementById('app-content');
+    renderNotifications(content);
+};
+
+window.setNotifFilter = (filter) => {
+    NOTIF_STATE.activeFilter = filter;
+    renderSection();
+};
+
+function renderNotificationDetail(container, notif) {
+    const sender = NOTIF_STATE.activeTab === 'admin' ? 'Maktab Ma\'muriyati' : 'Tizim Bildirishi';
+    
+    container.innerHTML = `
+        <div class="notif-premium-container fade-in">
+            <div class="profile-top-bar" style="margin-bottom: 25px;">
+                <i class="fa-solid fa-chevron-left" style="font-size: 1.2rem; cursor: pointer;" onclick="closeNotification()"></i>
+                <span class="profile-title-new" style="font-size: 1.1rem;">Xabar ma'lumoti</span>
+                <div style="width: 24px;"></div>
+            </div>
+
+            <div class="glass-card" style="padding: 25px; border-radius: 28px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #f1f5f9;">
+                    <div class="notif-icon-box cat-megaphone" style="width: 45px; height: 45px; border-radius: 14px;">
+                        <i class="fa-solid fa-bullhorn"></i>
+                    </div>
+                    <div>
+                        <span style="display: block; font-weight: 700; color: #1e293b; font-size: 1rem;">${sender}</span>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">${notif.time}</span>
+                    </div>
+                </div>
+
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #334155; margin-bottom: 30px;">
+                    ${notif.text.replace(/\n/g, '<br>')}
+                </div>
+
+                <button class="login-btn" style="width: 100%; padding: 15px; border-radius: 18px;" onclick="closeNotification()">
+                    <i class="fa-solid fa-arrow-left"></i> Orqaga qaytish
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Dark mode adjustments
+    if (document.body.getAttribute('data-theme') === 'dark') {
+        const card = container.querySelector('.glass-card');
+        if (card) {
+            card.style.background = 'rgba(255,255,255,0.03)';
+            const textDiv = container.querySelector('div[style*="color: #334155"]');
+            if (textDiv) textDiv.style.color = '#cbd5e1';
+            const senderSpan = container.querySelector('span[style*="color: #1e293b"]');
+            if (senderSpan) senderSpan.style.color = 'white';
+        }
+    }
+}
+
+window.openNotification = async (id) => {
+    const notif = APP_DATA.notifications.find(n => n.id === id);
+    if (!notif) return;
+
+    // Mark as read
+    if (!notif.read) {
+        notif.read = true;
+        try {
+            await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+        } catch (e) {}
+        updateNotifBadge();
+    }
+
+    NOTIF_STATE.currentView = id;
+    renderSection();
+};
+
+window.closeNotification = () => {
+    NOTIF_STATE.currentView = 'list';
+    renderSection();
+};
+
+window.deleteNotif = async (e, id) => {
+    e.stopPropagation(); 
+    console.log("Delete button clicked for ID:", id);
+    
+    const confirm = await showCustomConfirm("Xabarni o'chirish", "Ushbu xabarni o'chirib tashlamoqchimisiz?");
+    if (!confirm) {
+        console.log("Deletion cancelled by user");
+        return;
+    }
+
+    try {
+        console.log("Sending DELETE request to:", `${API_BASE}/notifications/${id}`);
+        const response = await fetch(`${API_BASE}/notifications/${id}`, { method: 'DELETE' });
+        console.log("Response status:", response.status);
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log("Delete result:", result);
+            await fetchData();
+            renderSection();
+            showCustomAlert("Xabar o'chirildi");
+        } else {
+            const errorText = await response.text();
+            console.error("Delete failed:", errorText);
+            showCustomAlert("O'chirishda xatolik yuz berdi");
+        }
+    } catch (err) {
+        console.error("Failed to delete notification:", err);
+        showCustomAlert("Xatolik yuz berdi: " + err.message);
+    }
+};
+
+async function markAllNotifsRead() {
+    APP_DATA.notifications.forEach(n => {
+        if (n.to === APP_DATA.user.user || n.role === 'admin') n.read = true;
+    });
+    showCustomAlert("Barcha xabarlar o'qildi");
+    renderSection();
 }
 
 async function addNewGift() {
@@ -1330,69 +1669,67 @@ const sectionMap = {
     'admin': 'admin',
     'messages': 'messages',
     'notifications': 'notifications',
-    'news-detail': 'news-detail'
+    'news-detail': 'news-detail',
+    'members': 'members'
 };
 
 function renderHome(container) {
     container.innerHTML = `
-        <div class="section-title">
-            <span>Yangiliklar</span>
-        </div>
         <div class="news-slider">
             ${APP_DATA.news.map(n => `
-                <div class="news-card" onclick="openNewsDetail(${n.id})">
+                <div class="news-card" onclick="openNewsDetail(${n.id})" style="height: 150px;">
                     ${n.type === 'video' ? `
                         <video src="${n.image}" autoplay muted loop playsinline></video>
                     ` : `
                         <img src="${n.image}" alt="${n.title}" onerror="this.src='news.png'">
                     `}
-                    <div class="news-content">
+                    <div class="news-content" style="padding: 15px;">
                         <div style="display: flex; justify-content: flex-end; align-items: flex-start; margin-bottom: 5px; width: 100%;">
-                            <div style="display: flex; gap: 10px; font-size: 0.7rem; color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 10px; backdrop-filter: blur(5px);">
+                            <div style="display: flex; gap: 8px; font-size: 0.65rem; color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 8px; backdrop-filter: blur(5px);">
                                 <span><i class="fa-regular fa-calendar"></i> ${n.date || 'Bugun'}</span>
                                 <span><i class="fa-regular fa-eye"></i> ${n.views || 0}</span>
                             </div>
                         </div>
-                        <h3 class="news-title">${n.title}</h3>
+                        <h3 class="news-title" style="font-size: 1rem; line-height: 1.2;">${n.title}</h3>
                     </div>
                 </div>
             `).join('')}
         </div>
 
-        <div class="glass-card" onclick="navigateTo('schedule')" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; margin-top: 20px;">
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <div style="width: 50px; height: 50px; border-radius: 15px; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem;">
+        <div class="glass-card" onclick="navigateTo('schedule')" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; margin-top: 5px; padding: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 42px; height: 42px; border-radius: 12px; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2rem;">
                     <i class="fa-regular fa-calendar-days"></i>
                 </div>
                 <div>
-                    <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700;">Dars jadvali</h3>
-                    <p id="live-schedule-status" style="margin: 0; font-size: 0.8rem; color: var(--text-muted); transition: all 0.3s;">${getLiveScheduleStatus()}</p>
+                    <h3 style="margin: 0; font-size: 1rem; font-weight: 700;">Dars jadvali</h3>
+                    <p id="live-schedule-status" style="margin: 0; font-size: 0.75rem; color: var(--text-muted); transition: all 0.3s;">${getLiveScheduleStatus()}</p>
                 </div>
             </div>
-            <i class="fa-solid fa-chevron-right" style="color: var(--text-muted);"></i>
+            <i class="fa-solid fa-chevron-right" style="color: var(--text-muted); font-size: 0.8rem;"></i>
         </div>
 
-        <div class="glass-card fade-in" style="margin-top: 20px; padding: 25px; background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.1) 100%); border: 1px solid rgba(99,102,241,0.3); border-radius: 30px;">
-            <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+        <div class="glass-card fade-in" style="margin-top: 5px; padding: 12px; background: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(168,85,247,0.05) 100%); border: 1px solid rgba(99,102,241,0.2); border-radius: 20px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
                 <div style="position: relative;">
-                    <div style="width: 70px; height: 70px; border-radius: 22px; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.8rem; box-shadow: 0 10px 20px rgba(99,102,241,0.3);">
+                    <div style="width: 45px; height: 45px; border-radius: 12px; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2rem;">
                         <i class="fa-solid fa-user-tie"></i>
                     </div>
-                    <div style="position: absolute; bottom: -5px; right: -5px; width: 22px; height: 22px; background: #22c55e; border: 3px solid var(--bg-dark); border-radius: 50%;" title="Online"></div>
+                    <div style="position: absolute; bottom: -2px; right: -2px; width: 12px; height: 12px; background: #22c55e; border: 2px solid var(--bg-dark); border-radius: 50%;"></div>
                 </div>
                 <div class="director-info">
-                    <h3 style="margin:0; font-size: 1.2rem; font-weight: 700; letter-spacing: -0.5px;">Akbar Tohirov</h3>
-                    <p style="margin:2px 0 0; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Maktab maslahatchisi</p>
+                    <h3 style="margin:0; font-size: 0.95rem; font-weight: 700;">Akbar Tohirov</h3>
+                    <p style="margin:0; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Maslahatchi</p>
                 </div>
             </div>
-            <a href="tel:+998910049600" onclick="showCustomAlert('Maslahatchi raqami: +998 91 004 96 00')" style="text-decoration:none; display: flex; align-items: center; justify-content: center; gap: 12px; background: #22c55e; color: white; padding: 15px; border-radius: 20px; font-weight: 700; font-size: 1rem; transition: all 0.3s; box-shadow: 0 10px 20px rgba(34,197,94,0.3);" class="call-btn">
+            <a href="tel:+998910049600" style="text-decoration:none; display: flex; align-items: center; justify-content: center; gap: 8px; background: #22c55e; color: white; padding: 10px; border-radius: 12px; font-weight: 700; font-size: 0.85rem;">
                 <i class="fa-solid fa-phone-volume"></i> Qo'ng'iroq qilish
             </a>
         </div>
 
-        <div class="social-buttons" style="margin-top: 30px;">
-            <a href="https://t.me/Maktabimhayoti" target="_blank" class="social-btn tg-btn"><i class="fa-brands fa-telegram"></i> Telegram</a>
-            <a href="https://www.instagram.com/maktabimhayoti/?__pwa=1#" target="_blank" class="social-btn ig-btn"><i class="fa-brands fa-instagram"></i> Instagram</a>
+        <div class="social-buttons" style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <a href="https://t.me/Maktabimhayoti" target="_blank" class="social-btn tg-btn" style="padding: 10px; font-size: 0.8rem; height: 40px;"><i class="fa-brands fa-telegram"></i> Telegram</a>
+            <a href="https://www.instagram.com/maktabimhayoti/?__pwa=1#" target="_blank" class="social-btn ig-btn" style="padding: 10px; font-size: 0.8rem; height: 40px;"><i class="fa-brands fa-instagram"></i> Instagram</a>
         </div>
     `;
 }
@@ -1414,21 +1751,21 @@ function renderSchedule(container) {
 
 function getLiveScheduleStatus() {
     if (!APP_DATA.user || !APP_DATA.user.class) return "Sinfingiz dars jadvalini ko'rish";
-    
+
     const now = new Date();
     const dayNames = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];
     const currentDay = dayNames[now.getDay()];
-    
+
     if (currentDay === 'yakshanba') return "Bugun darslar yo'q (Dam olish kuni)";
-    
+
     const schedule = APP_DATA.schedules ? APP_DATA.schedules.find(s => s.class === APP_DATA.user.class) : null;
     if (!schedule || !schedule.days[currentDay]) return "Sinfingiz dars jadvalini ko'rish";
-    
+
     const subjects = schedule.days[currentDay].split('\n').filter(s => s.trim() !== '');
     if (subjects.length === 0) return "Bugun uchun darslar kiritilmagan";
-    
+
     const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
-    
+
     // Lesson times in minutes from midnight
     const lessonTimes = [
         { start: 480, end: 525, name: '1-dars' }, // 08:00 - 08:45
@@ -1439,24 +1776,40 @@ function getLiveScheduleStatus() {
         { start: 745, end: 790, name: '6-dars' }, // 12:25 - 13:10
         { start: 795, end: 840, name: '7-dars' }  // 13:15 - 14:00
     ];
-    
-    // Check if currently in a lesson
-    for (let i = 0; i < lessonTimes.length; i++) {
+
+    const numLessons = subjects.length;
+    const lastLessonEnd = lessonTimes[numLessons - 1] ? lessonTimes[numLessons - 1].end : 0;
+
+    // 1. Before first lesson
+    if (currentTimeMinutes < lessonTimes[0].start) {
+        return `<span style="color: var(--text-muted);"><i class="fa-solid fa-clock"></i> Darslar hali boshlanmadi</span>`;
+    }
+
+    // 2. After last lesson of the day
+    if (currentTimeMinutes > lastLessonEnd) {
+        return `<span style="color: #94a3b8;"><i class="fa-solid fa-check-double"></i> Bugungi darslar yakunlandi</span>`;
+    }
+
+    // 3. During lessons or breaks
+    for (let i = 0; i < numLessons; i++) {
         const lesson = lessonTimes[i];
+
+        // During lesson i
         if (currentTimeMinutes >= lesson.start && currentTimeMinutes <= lesson.end) {
-            const subject = subjects[i] || 'Dars';
+            const subject = subjects[i];
             const startTimeStr = `${Math.floor(lesson.start / 60).toString().padStart(2, '0')}:${(lesson.start % 60).toString().padStart(2, '0')}`;
             return `<span style="color: #22c55e;"><i class="fa-solid fa-circle-play"></i> ${startTimeStr} ${subject} boshlandi</span>`;
         }
-    }
-    
-    // Check if in a break (between lessons)
-    for (let i = 0; i < lessonTimes.length - 1; i++) {
-        if (currentTimeMinutes > lessonTimes[i].end && currentTimeMinutes < lessonTimes[i+1].start) {
-            return `<span style="color: #eab308;"><i class="fa-solid fa-mug-hot"></i> Hozir tanaffus</span>`;
+
+        // During break after lesson i
+        if (i < numLessons - 1) {
+            const nextLesson = lessonTimes[i + 1];
+            if (currentTimeMinutes > lesson.end && currentTimeMinutes < nextLesson.start) {
+                return `<span style="color: #eab308;"><i class="fa-solid fa-mug-hot"></i> Hozir tanaffus</span>`;
+            }
         }
     }
-    
+
     return "Sinfingiz dars jadvalini ko'rish";
 }
 
@@ -1917,21 +2270,21 @@ function renderRanking(container) {
             ${top3.map((r, i) => {
         const theme = rankThemes[i];
         return `
-                <div class="glass-card" style="display: flex; align-items: center; gap: 20px; padding: 20px; background: ${theme.bg}; border: 1px solid ${theme.border}; position: relative; overflow: hidden;">
-                    <div style="position: absolute; top: -10px; right: -10px; font-size: 5rem; color: rgba(255,255,255,0.03); font-weight: 900; z-index: 0;">${i + 1}</div>
+                <div class="glass-card" style="display: flex; align-items: center; gap: 15px; padding: 12px 18px; background: ${theme.bg}; border: 1px solid ${theme.border}; position: relative; overflow: hidden; margin-bottom: 5px;">
+                    <div style="position: absolute; top: -10px; right: -10px; font-size: 4rem; color: rgba(255,255,255,0.03); font-weight: 900; z-index: 0;">${i + 1}</div>
                     <div style="position: relative; z-index: 1;">
-                        <div style="width: 70px; height: 70px; border-radius: 20px; border: 3px solid ${theme.color}; padding: 3px; background: rgba(0,0,0,0.2);">
-                            <img src="${r.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name)}&background=${theme.color.replace('#', '')}&color=fff`}" style="width: 100%; height: 100%; border-radius: 15px; object-fit: cover;">
+                        <div style="width: 50px; height: 50px; border-radius: 15px; border: 2px solid ${theme.color}; padding: 2px; background: rgba(0,0,0,0.2);">
+                            <img src="${r.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name)}&background=${theme.color.replace('#', '')}&color=fff`}" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;">
                         </div>
-                        <i class="fa-solid ${theme.icon}" style="position: absolute; top: -10px; left: -10px; color: ${theme.color}; font-size: 1.2rem; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));"></i>
+                        <i class="fa-solid ${theme.icon}" style="position: absolute; top: -8px; left: -8px; color: ${theme.color}; font-size: 1rem; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));"></i>
                     </div>
                     <div style="flex: 1; z-index: 1;">
-                        <div style="font-size: 1.1rem; font-weight: 700; color: white;">${r.name}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">${i + 1}-o'rin sohibi</div>
+                        <div style="font-size: 1rem; font-weight: 700; color: white;">${r.name}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">${i + 1}-o'rin</div>
                     </div>
                     <div style="text-align: right; z-index: 1;">
-                        <div style="font-size: 1.4rem; font-weight: 800; color: ${theme.color};">${r.score}</div>
-                        <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">ball</div>
+                        <div style="font-size: 1.2rem; font-weight: 800; color: ${theme.color};">${r.score}</div>
+                        <div style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">ball</div>
                     </div>
                 </div>
             `;
@@ -1945,13 +2298,13 @@ function renderRanking(container) {
         </div>
         <div class="ranking-list" style="display: flex; flex-direction: column; gap: 8px;">
             ${others.map((r, i) => `
-                <div class="glass-card" style="display: flex; align-items: center; gap: 15px; padding: 12px 15px; background: rgba(255,255,255,0.03);">
-                    <div style="width: 25px; font-weight: 700; color: var(--text-muted); font-size: 0.85rem; text-align: center;">${i + 4}</div>
-                    <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(r.name)}&background=random&color=fff" style="width: 38px; height: 38px; border-radius: 10px; object-fit: cover;">
+                <div class="glass-card" style="display: flex; align-items: center; gap: 12px; padding: 10px 15px; background: rgba(255,255,255,0.03); margin-bottom: 5px;">
+                    <div style="width: 20px; font-weight: 700; color: var(--text-muted); font-size: 0.8rem; text-align: center;">${i + 4}</div>
+                    <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(r.name)}&background=random&color=fff" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
                     <div style="flex: 1;">
-                        <div style="font-weight: 600; font-size: 0.9rem;">${r.name}</div>
+                        <div style="font-weight: 600; font-size: 0.85rem;">${r.name}</div>
                     </div>
-                    <div style="font-weight: 700; color: var(--text-muted); font-size: 1rem;">${r.score} <span style="font-size: 0.6rem; font-weight: 400;">ball</span></div>
+                    <div style="font-weight: 700; color: var(--text-muted); font-size: 0.9rem;">${r.score} <span style="font-size: 0.6rem; font-weight: 400;">ball</span></div>
                 </div>
             `).join('')}
         </div>
@@ -1963,117 +2316,115 @@ function renderProfile(container) {
     const isUserAdmin = isAdmin;
     const user = APP_DATA.user;
 
-    container.innerHTML = `
-        <div class="profile-header fade-in" style="padding: 40px 20px; text-align: center; background: linear-gradient(to bottom, rgba(99,102,241,0.1), transparent); border-radius: 30px; margin-bottom: 25px;">
-            <div style="position: relative; width: 100px; height: 100px; margin: 0 auto 20px;">
-                <div style="width: 100%; height: 100%; border-radius: 35px; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem; box-shadow: 0 10px 25px rgba(99,102,241,0.4);">
-                    <i class="fa-solid fa-user${isUserAdmin ? '-shield' : ''}"></i>
-                </div>
-                ${!isUserAdmin ? `<div style="position: absolute; bottom: -5px; right: -5px; background: #22c55e; color: white; padding: 5px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; border: 3px solid var(--bg);">ACTIVE</div>` : ''}
-            </div>
-            <h2 style="margin: 0; font-size: 1.6rem; font-weight: 700;">${isUserAdmin ? 'Tizim Adminstratori' : user.name}</h2>
-            <p style="margin: 5px 0 0; color: var(--text-muted); font-size: 1rem;">${isUserAdmin ? 'Boshqaruvchi' : user.class + ' o\'quvchisi'}</p>
-        </div>
+    // Calculate actual rank from all students
+    let actualRank = '-';
+    if (APP_DATA.users) {
+        const sortedStudents = APP_DATA.users
+            .filter(u => u.role === 'student')
+            .sort((a, b) => (b.score || 0) - (a.score || 0));
+        const rankIndex = sortedStudents.findIndex(u => u.user === user.username);
+        if (rankIndex !== -1) actualRank = rankIndex + 1;
+    }
 
-        ${isUserAdmin ? `
-            <div class="section-title">
+    if (isUserAdmin || isTeacher) {
+        container.innerHTML = `
+            <div class="profile-header fade-in" style="padding: 30px 20px; text-align: center; background: linear-gradient(to bottom, rgba(99,102,241,0.1), transparent); border-radius: 30px; margin-bottom: 20px;">
+                <div style="position: relative; width: 80px; height: 80px; margin: 0 auto 15px;">
+                    <div style="width: 100%; height: 100%; border-radius: 25px; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 2.5rem; box-shadow: 0 8px 20px rgba(99,102,241,0.3);">
+                        <i class="fa-solid ${isUserAdmin ? 'fa-user-shield' : 'fa-chalkboard-user'}"></i>
+                    </div>
+                </div>
+                <h2 style="margin: 0; font-size: 1.4rem; font-weight: 700;">${user.name}</h2>
+                <p style="margin: 5px 0 0; color: var(--text-muted); font-size: 0.9rem;">${isUserAdmin ? 'Tizim Administratori' : 'O\'qituvchi'}</p>
+            </div>
+
+            ${isUserAdmin ? `
+            <div class="section-title" style="margin-bottom: 10px;">
                 <span>Platforma Statistikasi</span>
             </div>
-            <div class="stats-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 30px;">
-                <div class="glass-card" style="padding: 20px; text-align: center; border: 1px solid rgba(99,102,241,0.2);">
-                    <i class="fa-solid fa-users" style="font-size: 1.5rem; color: #6366f1; margin-bottom: 10px; display: block;"></i>
-                    <div style="font-size: 1.4rem; font-weight: 800;">${APP_DATA.users ? APP_DATA.users.length : 0}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">A'zolar</div>
+            <div class="stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                <div class="glass-card" style="padding: 15px; text-align: center; border: 1px solid rgba(99,102,241,0.2);">
+                    <i class="fa-solid fa-users" style="font-size: 1.2rem; color: #6366f1; margin-bottom: 8px; display: block;"></i>
+                    <div style="font-size: 1.2rem; font-weight: 800;">${APP_DATA.users ? APP_DATA.users.length : 0}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">A'zolar</div>
                 </div>
-                <div class="glass-card" style="padding: 20px; text-align: center; border: 1px solid rgba(249,115,22,0.2);">
-                    <i class="fa-solid fa-newspaper" style="font-size: 1.5rem; color: #f97316; margin-bottom: 10px; display: block;"></i>
-                    <div style="font-size: 1.4rem; font-weight: 800;">${APP_DATA.news.length}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Yangiliklar</div>
+                <div class="stats-grid-item glass-card" style="padding: 15px; text-align: center; border: 1px solid rgba(249,115,22,0.2);">
+                    <i class="fa-solid fa-newspaper" style="font-size: 1.2rem; color: #f97316; margin-bottom: 8px; display: block;"></i>
+                    <div style="font-size: 1.2rem; font-weight: 800;">${APP_DATA.news.length}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Yangiliklar</div>
                 </div>
-                <div class="glass-card" style="padding: 20px; text-align: center; border: 1px solid rgba(34,197,94,0.2);">
-                    <i class="fa-solid fa-eye" style="font-size: 1.5rem; color: #22c55e; margin-bottom: 10px; display: block;"></i>
-                    <div style="font-size: 1.4rem; font-weight: 800;">${APP_DATA.visitors || 0}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Ko'rildi</div>
-                </div>
-                <div class="glass-card" style="padding: 20px; text-align: center; border: 1px solid rgba(236,72,153,0.2);">
-                    <i class="fa-solid fa-gift" style="font-size: 1.5rem; color: #ec4899; margin-bottom: 10px; display: block;"></i>
-                    <div style="font-size: 1.4rem; font-weight: 800;">${APP_DATA.gifts.length}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Sovg'alar</div>
+            </div>
+            ` : ''}
+
+            <div style="padding: 0 10px;">
+                <button class="logout-btn-new" onclick="handleLogout()" style="margin-top: 10px;">
+                    <i class="fa-solid fa-right-from-bracket"></i> Tizimdan chiqish
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    // Student Profile View - Optimized for space
+    container.innerHTML = `
+        <div class="profile-premium-container fade-in">
+            <div class="profile-header-new">
+                <div class="profile-top-bar">
+                    <i class="fa-solid fa-chevron-left" style="font-size: 1.1rem; cursor: pointer;" onclick="navigateTo('home')"></i>
+                    <span class="profile-title-new">Profil</span>
+                    <div style="width: 24px;"></div> <!-- Spacer for balance -->
                 </div>
             </div>
 
-            <div class="section-title">
-                <span>Barcha A'zolar</span>
-            </div>
-            <div class="members-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 500px; overflow-y: auto;">
-                ${APP_DATA.users ? APP_DATA.users.map(u => `
-                    <div class="glass-card" style="padding: 15px; background: rgba(255,255,255,0.03);">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=random&color=fff" style="width: 45px; height: 45px; border-radius: 12px;">
-                            <div style="flex: 1;">
-                                <div style="font-weight: 600; font-size: 1rem;">${u.name}</div>
-                                <div style="font-size: 0.8rem; color: var(--text-muted);">${u.class}</div>
-                                <div style="font-size: 0.75rem; color: #fbbf24; font-family: monospace;">Login: ${u.user} • Parol: ${u.pass}</div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="font-weight: 700; color: #22c55e;">${u.score || 0} ball</div>
-                                <div style="font-size: 0.7rem; color: var(--text-muted);">${u.testsTaken || 0} ta test</div>
-                            </div>
-                            ${u.user !== 'admin' ? `
-                                <button onclick="deleteUser('${u.user}')" style="background: rgba(239,68,68,0.1); color:#ef4444; border:none; padding:10px; border-radius:12px; cursor:pointer; margin-left: 5px;">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            ` : ''}
-                        </div>
+            <div class="profile-card-overlap">
+                <div class="profile-avatar-new">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <h2 class="profile-name-new" style="font-size: 1.2rem;">${user.name}</h2>
+                <span class="profile-badge-new">${user.class} sinf</span>
+                
+                <div style="display: flex; justify-content: center; gap: 20px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #f1f5f9;">
+                    <div style="text-align: center;">
+                        <div style="font-weight: 800; color: #1e293b; font-size: 1.1rem;">${user.testsTaken || 0}</div>
+                        <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Testlar</div>
                     </div>
-                `).join('') : '<p>Azolar yuklanmoqda...</p>'}
-            </div>
-        ` : `
-            <div class="stats-grid" style="grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
-                <div class="glass-card" style="padding: 25px; text-align: center; border: 1px solid rgba(255,75,43,0.2); background: linear-gradient(135deg, rgba(255,75,43,0.1) 0%, transparent 100%);">
-                    <i class="fa-solid fa-coins" style="font-size: 1.8rem; color: #ffb800; margin-bottom: 12px; display: block;"></i>
-                    <div style="font-size: 1.8rem; font-weight: 800; color: white;">${user.score}</div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 1px;">Sizning balingiz</div>
-                </div>
-                <div class="glass-card" style="padding: 25px; text-align: center; border: 1px solid rgba(99,102,241,0.2); background: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, transparent 100%);">
-                    <i class="fa-solid fa-graduation-cap" style="font-size: 1.8rem; color: #6366f1; margin-bottom: 12px; display: block;"></i>
-                    <div style="font-size: 1.8rem; font-weight: 800; color: white;">${user.testsTaken}</div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 1px;">Yechilgan testlar</div>
+                    <div style="text-align: center;">
+                        <div style="font-weight: 800; color: #1e293b; font-size: 1.1rem;">#${actualRank}</div>
+                        <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Reyting</div>
+                    </div>
                 </div>
             </div>
 
-            <div class="glass-card" style="display: flex; align-items: center; gap: 20px; padding: 25px; background: linear-gradient(135deg, rgba(34,197,94,0.1) 0%, transparent 100%); border: 1px solid rgba(34,197,94,0.2);">
-                <div style="width: 60px; height: 60px; border-radius: 20px; background: #22c55e; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.8rem; box-shadow: 0 8px 20px rgba(34,197,94,0.3);">
-                    <i class="fa-solid fa-trophy"></i>
+            <div class="score-stats-card">
+                <div class="score-header-new">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="info-icon-circle" style="background: #eef2ff; width: 36px; height: 36px; font-size: 0.9rem;">
+                            <i class="fa-solid fa-chart-line" style="color: #4f46e5;"></i>
+                        </div>
+                        <span class="score-label-new" style="font-size: 1rem;">Umumiy Ball</span>
+                    </div>
+                    <div class="score-main-value">
+                        <div class="score-number-new" style="font-size: 1.5rem;">${user.score}</div>
+                    </div>
                 </div>
-                <div style="flex: 1;">
-                    <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700;">Reytingdagi o'rningiz</h3>
-                    <p style="margin: 4px 0 0; font-size: 0.9rem; color: var(--text-muted);">Siz hozirda <span style="color: #22c55e; font-weight: 700;">#${APP_DATA.ranking.findIndex(r => r.name === user.name) + 1 || '-'}</span> -o'rindasiz</p>
-                </div>
-            </div>
-        `}
 
-        <div style="margin-top: 40px; display: flex; flex-direction: column; gap: 15px;">
-            <button class="logout-btn" onclick="handleLogout()" style="width: 100%; padding: 18px; border-radius: 20px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: #ef4444; font-weight: 700; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s;">
-                <i class="fa-solid fa-right-from-bracket"></i> Tizimdan chiqish
-            </button>
-            <p style="text-align: center; font-size: 0.8rem; color: var(--text-muted);">Versiya 2.4.0 • 24-Maktab Platformasi</p>
+                <div class="progress-container-new">
+                    <div class="progress-bar-new" style="width: ${Math.min(user.score, 100)}%;"></div>
+                </div>
+                
+                <p style="font-size: 0.75rem; color: #94a3b8; text-align: center; margin: 0;">Sovg'alar uchun yana ball to'plang!</p>
+            </div>
+
+            <div style="padding: 15px 25px;">
+                <button class="logout-btn-new" onclick="handleLogout()" style="margin: 0;">
+                    <i class="fa-solid fa-right-from-bracket"></i> Tizimdan chiqish
+                </button>
+                <p style="text-align: center; font-size: 0.7rem; color: #94a3b8; margin-top: 10px;">Versiya 2.4.0 • 24-Maktab Platformasi</p>
+            </div>
         </div>
     `;
 }
 
-// Initial Load
-window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        document.getElementById('loading-screen').style.opacity = '0';
-        setTimeout(() => {
-            document.getElementById('loading-screen').style.display = 'none';
-            // Show Login Screen instead of main content
-            document.getElementById('login-screen').classList.remove('hidden');
-        }, 500);
-    }, 1500);
-});
-// Session Persistence
 // Theme Logic
 function toggleTheme() {
     const body = document.body;
@@ -2100,55 +2451,39 @@ function initTheme() {
     }
 }
 
+// Initial Load & Session Persistence
 window.onload = async () => {
     initTheme();
+
+    const loadingScreen = document.getElementById('loading-screen');
+    const welcomeScreen = document.getElementById('welcome-screen');
+    const loginScreenV2 = document.getElementById('login-screen-v2');
+    const navbars = document.querySelectorAll('.top-navbar, #bottom-navbar');
+
+    // Always show Welcome screen first as requested
+    if (welcomeScreen) welcomeScreen.classList.remove('hidden');
+    if (loginScreenV2) loginScreenV2.classList.add('hidden');
+    if (loadingScreen) loadingScreen.classList.add('hidden');
+    navbars.forEach(nav => nav.classList.add('hidden'));
 
     // Increment visitor count only once per browser session
     if (!sessionStorage.getItem('site_visited')) {
         fetch(`${API_BASE}/visitor`, { method: 'POST' });
         sessionStorage.setItem('site_visited', 'true');
     }
+    
+    // Force data fetch for initial app state
+    await fetchData();
 
-    const session = localStorage.getItem('userSession');
-    if (session) {
-        const user = JSON.parse(session);
-        isAdmin = user.role === 'admin';
-        isTeacher = user.role === 'teacher';
-
-        // Refresh user data from server on load
-        await fetchData();
-
-        APP_DATA.user = {
-            name: user.name,
-            class: user.class,
-            score: user.score || 0,
-            testsTaken: user.testsTaken || 0,
-            username: user.user,
-            role: user.role,
-            completedTests: user.completedTests || {}
-        };
-
-        document.getElementById('login-screen').classList.add('hidden');
-        document.querySelectorAll('.top-navbar, #bottom-navbar').forEach(el => {
-            el.classList.remove('hidden');
-        });
-
-        initSocketListeners();
-        initPullToRefresh();
-        renderBottomNav();
-
-        if (isAdmin) currentSection = 'admin';
-        else currentSection = 'home';
-
-        renderSection();
-
-        // Auto-refresh data every 2 seconds in background
-        setInterval(async () => {
-            await fetchData();
-            updateHeaderScore();
-            // renderSection() removed to stop UI flickering as requested
-        }, 2000);
-    }
+    // Hide loading screen only after UI is prepared
+    setTimeout(() => {
+        if (loadingScreen) {
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => {
+                loadingScreen.style.display = 'none';
+            }, 500);
+        }
+    }, 1000);
 };
 
 async function addNewUser() {
@@ -2417,21 +2752,21 @@ function renderChart(labels, averages, labelText, primaryColor = '#6366f1') {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { 
+                        ticks: {
                             color: 'rgba(255,255,255,0.5)',
                             font: { family: "'Outfit', sans-serif" }
                         },
-                        grid: { 
+                        grid: {
                             color: 'rgba(255,255,255,0.05)',
                             drawBorder: false
                         }
                     },
                     x: {
-                        ticks: { 
+                        ticks: {
                             color: 'rgba(255,255,255,0.5)',
                             font: { family: "'Outfit', sans-serif" }
                         },
-                        grid: { 
+                        grid: {
                             display: false
                         }
                     }
