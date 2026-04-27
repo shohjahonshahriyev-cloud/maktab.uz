@@ -1416,7 +1416,8 @@ main {
 }
 
 /* New Welcome V3 Design */
-.welcome-screen-v3, .login-screen-new {
+.welcome-screen-v3,
+.login-screen-new {
     position: fixed;
     top: 0;
     left: 0;
@@ -1642,8 +1643,8 @@ main {
 }
 
 .login-icon-v2 {
-    width: 100px;
-    height: 100px;
+    width: 150px;
+    height: 150px;
     margin-bottom: 20px;
 }
 

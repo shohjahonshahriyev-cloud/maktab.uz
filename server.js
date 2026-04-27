@@ -6,12 +6,23 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const webpush = require('web-push');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: { origin: "*" }
 });
+
+// Push Notifications Config
+const publicVapidKey = 'BJiXkGpzXU8RIM4Ca9AU2XqIiu2WFYGPVGUyY_Aw3yYLMCzJGPF0ZDCnO47fA1S8Uu5yBx4EUgvkVz3g889OUIg';
+const privateVapidKey = 'fPKjPZ2G739dwxL7y8scTB0hQuyha5gCEdLlceJ1Qdw';
+
+webpush.setVapidDetails(
+    'mailto:shohjahon@example.com',
+    publicVapidKey,
+    privateVapidKey
+);
 
 const PORT = process.env.PORT || 3000;
 const DB_FILE = path.join(__dirname, 'db.json');
@@ -189,11 +200,53 @@ app.delete('/api/gifts/:id', (req, res) => {
 });
 
 
+app.post('/api/subscribe', (req, res) => {
+    const subscription = req.body;
+    const db = readDB();
+    if (!db.subscriptions) db.subscriptions = [];
+    
+    // Check if subscription already exists
+    const exists = db.subscriptions.find(s => s.endpoint === subscription.endpoint);
+    if (!exists) {
+        db.subscriptions.push(subscription);
+        writeDB(db);
+    }
+    
+    res.status(201).json({ success: true });
+});
+
+async function sendPushNotification(payload) {
+    const db = readDB();
+    const subscriptions = db.subscriptions || [];
+    
+    const notificationPayload = JSON.stringify({
+        title: '24-Maktab',
+        body: payload.text || 'Yangi xabar keldi'
+    });
+
+    const pushPromises = subscriptions.map(sub => 
+        webpush.sendNotification(sub, notificationPayload).catch(err => {
+            if (err.statusCode === 404 || err.statusCode === 410) {
+                console.log('Subscription has expired or is no longer valid');
+                // Could remove expired subscriptions here
+                return null;
+            }
+            console.error('Push error:', err);
+        })
+    );
+
+    return Promise.all(pushPromises);
+}
+
 app.post('/api/notifications', (req, res) => {
     const db = readDB();
     db.appData.notifications.unshift(req.body);
     writeDB(db);
     io.emit('newNotification', req.body);
+    
+    // Send background push notification
+    sendPushNotification(req.body);
+    
     res.json({ success: true });
 });
 
@@ -345,6 +398,10 @@ app.post('/api/teacher/add-points', (req, res) => {
 
     writeDB(db);
     broadcastUpdate();
+    
+    // Send background push notification
+    sendPushNotification(notif);
+
     res.json({ success: true, newScore: student.score });
 });
 

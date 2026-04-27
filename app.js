@@ -4,6 +4,41 @@ const socket = io();
 
 let notifCount = 0;
 
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+async function initPushNotifications() {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+            const registration = await navigator.serviceWorker.register('/sw.js');
+            console.log('Service Worker registered');
+
+            const publicVapidKey = 'BJiXkGpzXU8RIM4Ca9AU2XqIiu2WFYGPVGUyY_Aw3yYLMCzJGPF0ZDCnO47fA1S8Uu5yBx4EUgvkVz3g889OUIg';
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+            });
+
+            await fetch(`${API_BASE}/subscribe`, {
+                method: 'POST',
+                body: JSON.stringify(subscription),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            console.log('Push Subscribed');
+        } catch (error) {
+            console.error('Push notification registration failed:', error);
+        }
+    }
+}
+
 function getCurrentTime() {
     const now = new Date();
     return now.toLocaleString('uz-UZ', {
@@ -129,6 +164,10 @@ let testState = {
     timerInterval: null
 };
 let currentNewsId = null;
+let MEMBER_STATE = {
+    activeTab: 'teachers', // 'teachers' or 'students'
+    searchQuery: ''
+};
 
 // Navigation
 function navigateTo(section) {
@@ -159,8 +198,8 @@ function proceedNav(section) {
     // Hide badge if opening notifications
     if (section === 'notifications') {
         notifCount = 0;
-        updateNotifBadge();
         APP_DATA.notifications.forEach(n => n.read = true);
+        updateNotifBadge();
     }
 
     renderSection();
@@ -314,6 +353,7 @@ async function handleLoginV2() {
 
             await fetchData();
             initSocketListeners();
+            initPushNotifications();
             updateHeaderScore();
             updateNotifBadge();
             renderBottomNav();
@@ -365,6 +405,8 @@ function initSocketListeners() {
         }
     });
 
+    const notifSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+
     const handleNewNotif = (notif) => {
         // Double check filter
         if (notif.role === 'admin' && !isAdmin) return;
@@ -372,6 +414,16 @@ function initSocketListeners() {
         APP_DATA.notifications.unshift(notif);
         updateNotifBadge();
         
+        // Play notification sound
+        notifSound.play().catch(err => console.log("Sound play blocked:", err));
+
+        // Optional: Voice (Text-to-Speech)
+        if ('speechSynthesis' in window) {
+            const msg = new SpeechSynthesisUtterance("Maktabdan yangi xabar keldi");
+            msg.lang = 'uz-UZ'; // Attempting Uzbek, will fallback to default if not available
+            window.speechSynthesis.speak(msg);
+        }
+
         if (currentSection === 'notifications') {
             renderSection();
         }
@@ -399,9 +451,9 @@ function updateHeaderScore() {
 }
 
 function updateNotifBadge() {
-    const badge = document.getElementById('notif-badge');
+    const badges = document.querySelectorAll('.notif-badge');
     const user = APP_DATA.user;
-    if (!user || !badge) return;
+    if (!user) return;
     
     const currentUser = user.user || user.username;
     
@@ -411,12 +463,14 @@ function updateNotifBadge() {
         return !n.to || n.to === currentUser;
     }).length;
 
-    if (count > 0) {
-        badge.innerText = count;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
-    }
+    badges.forEach(badge => {
+        if (count > 0) {
+            badge.innerText = count;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    });
 }
 
 async function fetchData() {
@@ -850,17 +904,31 @@ function renderAdmin(container) {
 }
 
 function renderMembers(container) {
+    const teachers = APP_DATA.users.filter(u => u.role === 'teacher');
+    const students = APP_DATA.users.filter(u => u.role === 'student');
+
     container.innerHTML = `
         <div class="notif-premium-container fade-in">
             <div class="profile-top-bar" style="margin-bottom: 25px;">
                 <i class="fa-solid fa-chevron-left" style="font-size: 1.2rem; cursor: pointer;" onclick="navigateTo('admin')"></i>
-                <span class="profile-title-new" style="font-size: 1.1rem;">A'zolar ro'yxati</span>
+                <span class="profile-title-new" style="font-size: 1.1rem;">A'zolar boshqaruvi</span>
                 <div style="width: 24px;"></div>
+            </div>
+
+            <div class="premium-tabs" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                <div class="tab-item ${MEMBER_STATE.activeTab === 'teachers' ? 'active' : ''}" onclick="switchMemberTab('teachers')" 
+                    style="padding: 12px; text-align: center; border-radius: 15px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.3s; ${MEMBER_STATE.activeTab === 'teachers' ? 'background: var(--primary); color: white;' : 'background: rgba(255,255,255,0.05); color: var(--text-muted);'}">
+                    <i class="fa-solid fa-chalkboard-user"></i> O'qituvchilar (${teachers.length})
+                </div>
+                <div class="tab-item ${MEMBER_STATE.activeTab === 'students' ? 'active' : ''}" onclick="switchMemberTab('students')"
+                    style="padding: 12px; text-align: center; border-radius: 15px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.3s; ${MEMBER_STATE.activeTab === 'students' ? 'background: var(--primary); color: white;' : 'background: rgba(255,255,255,0.05); color: var(--text-muted);'}">
+                    <i class="fa-solid fa-user-graduate"></i> O'quvchilar (${students.length})
+                </div>
             </div>
 
             <div class="notif-search-box" style="margin-bottom: 20px;">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" placeholder="Ism yoki login bo'yicha qidirish..." oninput="filterMembers(this.value)">
+                <input type="text" placeholder="Ism yoki login bo'yicha qidirish..." value="${MEMBER_STATE.searchQuery}" oninput="filterMembers(this.value)">
             </div>
 
             <div id="members-list-container" class="fade-in">
@@ -870,51 +938,98 @@ function renderMembers(container) {
     `;
 }
 
-function renderMembersList(usersList) {
-    if (!usersList || usersList.length === 0) return '<p style="text-align:center; padding: 40px; color: var(--text-muted);">A\'zolar topilmadi</p>';
+window.switchMemberTab = (tab) => {
+    MEMBER_STATE.activeTab = tab;
+    renderSection();
+};
 
-    return usersList.map(u => `
-        <div class="glass-card" style="padding: 15px; margin-bottom: 12px; border-radius: 20px; display: flex; flex-direction: column; gap: 8px;">
+function renderMembersList(usersList) {
+    const q = MEMBER_STATE.searchQuery.toLowerCase();
+    
+    let filtered = usersList.filter(u => 
+        (u.name.toLowerCase().includes(q) || u.user.toLowerCase().includes(q))
+    );
+
+    if (MEMBER_STATE.activeTab === 'teachers') {
+        filtered = filtered.filter(u => u.role === 'teacher' || u.role === 'admin');
+        return renderSimpleUsersList(filtered);
+    } else {
+        filtered = filtered.filter(u => u.role === 'student');
+        
+        // Group students by class
+        const groups = {};
+        filtered.forEach(u => {
+            const cls = u.class || 'Sinf belgilanmagan';
+            if (!groups[cls]) groups[cls] = [];
+            groups[cls].push(u);
+        });
+
+        const sortedClasses = Object.keys(groups).sort();
+        
+        if (sortedClasses.length === 0) return '<p style="text-align:center; padding: 40px; color: var(--text-muted);">O\'quvchilar topilmadi</p>';
+
+        return sortedClasses.map(cls => `
+            <div class="class-group" style="margin-bottom: 25px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 0 5px;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(99,102,241,0.1); color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem;">
+                        ${cls.includes('-') ? cls.split('-')[0] : 'S'}
+                    </div>
+                    <h3 style="margin: 0; font-size: 1rem; font-weight: 700;">${cls}-sinf</h3>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">(${groups[cls].length} ta)</span>
+                </div>
+                ${renderSimpleUsersList(groups[cls])}
+            </div>
+        `).join('');
+    }
+}
+
+function renderSimpleUsersList(list) {
+    if (!list || list.length === 0) return '<p style="text-align:center; padding: 20px; color: var(--text-muted);">A\'zolar topilmadi</p>';
+
+    return list.map(u => `
+        <div class="glass-card" style="padding: 15px; margin-bottom: 12px; border-radius: 20px; display: flex; flex-direction: column; gap: 8px; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div>
-                    <h3 style="margin: 0; font-size: 1rem; color: var(--text-main);">${u.name}</h3>
-                    <span style="font-size: 0.75rem; color: var(--primary); background: rgba(99,102,241,0.1); padding: 2px 8px; border-radius: 6px; margin-top: 4px; display: inline-block;">
-                        ${u.role === 'teacher' ? 'O\'qituvchi' : u.role === 'admin' ? 'Admin' : u.class || 'Sinf belgilanmagan'}
-                    </span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 40px; height: 40px; border-radius: 12px; background: ${u.role === 'teacher' ? 'rgba(249,115,22,0.1)' : 'rgba(99,102,241,0.1)'}; color: ${u.role === 'teacher' ? '#f97316' : '#6366f1'}; display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
+                        <i class="fa-solid ${u.role === 'teacher' ? 'fa-chalkboard-user' : 'fa-user-graduate'}"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 0.95rem; color: var(--text-main); font-weight: 700;">${u.name}</h3>
+                        <span style="font-size: 0.7rem; color: var(--text-muted);">${u.role === 'teacher' ? (u.subject || 'O\'qituvchi') : u.class}</span>
+                    </div>
                 </div>
                 ${u.user !== 'admin' ? `
-                    <button onclick="deleteMember('${u.user}')" style="background: rgba(239,68,68,0.1); color: #ef4444; border: none; padding: 8px; border-radius: 10px; cursor: pointer;">
+                    <button onclick="deleteMember('${u.user}')" style="background: rgba(239,68,68,0.05); color: #ef4444; border: none; padding: 8px; border-radius: 10px; cursor: pointer; transition: all 0.2s;">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
-                ` : ''}
+                ` : '<span style="font-size: 0.65rem; color: #22c55e; background: rgba(34,197,94,0.1); padding: 2px 6px; border-radius: 5px;">Tizim Admini</span>'}
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05);">
-                <div>
-                    <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">Login:</span>
-                    <span style="font-size: 0.9rem; font-family: monospace; font-weight: 600;">${u.user}</span>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.03);">
+                <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 10px;">
+                    <span style="font-size: 0.65rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Login:</span>
+                    <span style="font-size: 0.85rem; font-family: monospace; font-weight: 600; color: #cbd5e1;">${u.user}</span>
                 </div>
-                <div>
-                    <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">Parol:</span>
-                    <span style="font-size: 0.9rem; font-family: monospace; font-weight: 600;">${u.pass}</span>
+                <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 10px;">
+                    <span style="font-size: 0.65rem; color: var(--text-muted); display: block; margin-bottom: 2px;">Parol:</span>
+                    <span style="font-size: 0.85rem; font-family: monospace; font-weight: 600; color: #cbd5e1;">${u.pass}</span>
                 </div>
             </div>
             
-            <div style="display: flex; gap: 15px; font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">
-                <span><i class="fa-solid fa-star"></i> ${u.score || 0} ball</span>
-                <span><i class="fa-solid fa-list-check"></i> ${u.testsTaken || 0} test</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; padding: 0 5px;">
+                <div style="display: flex; gap: 12px; font-size: 0.75rem;">
+                    <span style="color: #22c55e;"><i class="fa-solid fa-star"></i> ${u.score || 0} ball</span>
+                    <span style="color: #6366f1;"><i class="fa-solid fa-list-check"></i> ${u.testsTaken || 0} test</span>
+                </div>
+                <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; color: rgba(255,255,255,0.1);"></i>
             </div>
         </div>
     `).join('');
 }
 
 window.filterMembers = (query) => {
-    const q = query.toLowerCase();
-    const filtered = APP_DATA.users.filter(u => 
-        u.name.toLowerCase().includes(q) || 
-        u.user.toLowerCase().includes(q)
-    );
-    document.getElementById('members-list-container').innerHTML = renderMembersList(filtered);
+    MEMBER_STATE.searchQuery = query;
+    document.getElementById('members-list-container').innerHTML = renderMembersList(APP_DATA.users);
 };
 
 window.deleteMember = async (username) => {
@@ -2460,22 +2575,79 @@ window.onload = async () => {
     const loginScreenV2 = document.getElementById('login-screen-v2');
     const navbars = document.querySelectorAll('.top-navbar, #bottom-navbar');
 
-    // Always show Welcome screen first as requested
-    if (welcomeScreen) welcomeScreen.classList.remove('hidden');
-    if (loginScreenV2) loginScreenV2.classList.add('hidden');
+    // Force data fetch early to have updated stats if auto-logging in
+    await fetchData();
+
+    // Check for existing session
+    const savedSession = localStorage.getItem('userSession');
+    if (savedSession) {
+        try {
+            const foundUser = JSON.parse(savedSession);
+            
+            // Re-sync user data with latest from server (fetchData already called)
+            const serverUser = APP_DATA.users.find(u => u.user === (foundUser.user || foundUser.username));
+            const userToUse = serverUser || foundUser;
+
+            isAdmin = userToUse.role === 'admin';
+            isTeacher = userToUse.role === 'teacher';
+
+            APP_DATA.user = {
+                name: userToUse.name,
+                class: userToUse.class,
+                score: userToUse.score || 0,
+                testsTaken: userToUse.testsTaken || 0,
+                username: userToUse.user || userToUse.username,
+                role: userToUse.role,
+                completedTests: userToUse.completedTests || {}
+            };
+
+            // Show app, hide screens
+            if (welcomeScreen) welcomeScreen.classList.add('hidden');
+            if (loginScreenV2) loginScreenV2.classList.add('hidden');
+            navbars.forEach(el => el.classList.remove('hidden'));
+
+            initSocketListeners();
+            initPushNotifications();
+            updateHeaderScore();
+            updateNotifBadge();
+            renderBottomNav();
+            
+            if (isAdmin) currentSection = 'admin';
+            else currentSection = 'home';
+            renderSection();
+
+            // UI adjustments (profile button)
+            const topProfileBtn = document.getElementById('profile-btn');
+            if (topProfileBtn) {
+                if (isAdmin || isTeacher) {
+                    topProfileBtn.innerHTML = '<i class="fa-solid fa-user-circle"></i>';
+                    topProfileBtn.setAttribute('onclick', "navigateTo('profile')");
+                } else {
+                    topProfileBtn.innerHTML = '<i class="fa-solid fa-chart-pie"></i>';
+                    topProfileBtn.setAttribute('onclick', "renderAnalyticsView()");
+                }
+            }
+        } catch (e) {
+            console.error("Session restore error:", e);
+            localStorage.removeItem('userSession');
+            if (welcomeScreen) welcomeScreen.classList.remove('hidden');
+        }
+    } else {
+        // No session, show Welcome screen
+        if (welcomeScreen) welcomeScreen.classList.remove('hidden');
+        if (loginScreenV2) loginScreenV2.classList.add('hidden');
+        navbars.forEach(nav => nav.classList.add('hidden'));
+    }
+
     if (loadingScreen) loadingScreen.classList.add('hidden');
-    navbars.forEach(nav => nav.classList.add('hidden'));
 
     // Increment visitor count only once per browser session
     if (!sessionStorage.getItem('site_visited')) {
         fetch(`${API_BASE}/visitor`, { method: 'POST' });
         sessionStorage.setItem('site_visited', 'true');
     }
-    
-    // Force data fetch for initial app state
-    await fetchData();
 
-    // Hide loading screen only after UI is prepared
+    // Hide loading screen with fade
     setTimeout(() => {
         if (loadingScreen) {
             loadingScreen.style.opacity = '0';

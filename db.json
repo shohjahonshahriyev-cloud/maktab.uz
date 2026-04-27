@@ -227,7 +227,7 @@
         "id": 1777287719046,
         "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
         "time": "27/04/2026 16:01:59",
-        "read": false,
+        "read": true,
         "role": "student",
         "to": "durdona"
       },
@@ -267,7 +267,7 @@
         "id": 1777287589888,
         "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
         "time": "27/04/2026 15:59:49",
-        "read": false,
+        "read": true,
         "role": "student",
         "to": "durdona"
       },
@@ -275,7 +275,7 @@
         "id": 1777287540192,
         "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
         "time": "27/04/2026 15:59:00",
-        "read": false,
+        "read": true,
         "role": "student",
         "to": "durdona"
       },
@@ -338,23 +338,11 @@
         "id": 1777281552891,
         "text": "Sizga +1 ball qo'shildi. Umumiy balingiz: 11",
         "time": "27/04/2026 14:19:12",
-        "read": false,
+        "read": true,
         "to": "durdona"
-      },
-      {
-        "id": 1777280688879,
-        "text": "new",
-        "time": "2026-04-27 14:04",
-        "read": true
-      },
-      {
-        "id": 1777278483901,
-        "text": "j",
-        "time": "2026-04-27 13:28",
-        "read": true
       }
     ],
-    "visitors": 2169
+    "visitors": 2173
   },
   "schedules": [
     {
