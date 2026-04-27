@@ -16,23 +16,10 @@
       "pass": "2025",
       "role": "student",
       "subject": "",
-      "score": 10,
-      "testsTaken": 1,
-      "completedTests": {
-        "math": 1777145070973
-      }
-    },
-    {
-      "name": "shohjahon shahriyev",
-      "class": "11-B",
-      "user": "durdona1",
-      "pass": "2025",
-      "role": "student",
-      "subject": "",
       "score": 14,
-      "testsTaken": 1,
+      "testsTaken": 2,
       "completedTests": {
-        "math": 1777153895382
+        "math": 1777281552888
       }
     },
     {
@@ -52,8 +39,21 @@
       "pass": "2025",
       "role": "student",
       "subject": "",
-      "score": 0,
+      "score": 14,
       "testsTaken": 0
+    },
+    {
+      "name": "aliyev vali",
+      "class": "7-A",
+      "user": "aliyev",
+      "pass": "vali",
+      "role": "student",
+      "subject": "",
+      "score": 9,
+      "testsTaken": 1,
+      "completedTests": {
+        "math": 1777283623626
+      }
     }
   ],
   "appData": {
@@ -65,7 +65,7 @@
         "tag": "Yangilik",
         "image": "/uploads/1777151523456.jpg",
         "type": "image",
-        "views": 0,
+        "views": 4,
         "date": "26 Aprel, 2026"
       },
       {
@@ -75,7 +75,7 @@
         "tag": "Yangilik",
         "image": "/uploads/1777146133347.png",
         "type": "image",
-        "views": 6,
+        "views": 7,
         "date": "26 Aprel, 2026"
       }
     ],
@@ -98,16 +98,18 @@
         "icon": "fa-calculator",
         "questions": [
           {
-            "q": "20+20*5=?",
+            "q": "1+3",
             "options": [
-              "bilmayman",
-              "33",
-              "120",
-              "125"
+              "4wr",
+              "g",
+              "g",
+              "g"
             ],
-            "correct": 2
+            "correct": 1,
+            "image": "/uploads/1777281518031.png"
           }
-        ]
+        ],
+        "lastUpdated": 1777281530666
       },
       {
         "id": "physics",
@@ -206,12 +208,8 @@
     ],
     "ranking": [
       {
-        "name": "Abbos Aliev",
-        "score": 154
-      },
-      {
         "name": "shohjahon shahriyev",
-        "score": 14
+        "score": 11
       },
       {
         "name": "durdona shaxriyev",
@@ -226,182 +224,137 @@
     },
     "notifications": [
       {
-        "id": 1777153895387,
-        "text": "Sizga +1 ball qo'shildi. Umumiy balingiz: 14",
-        "time": "26/04/2026 02:51:35",
-        "read": false,
-        "to": "durdona1"
-      },
-      {
-        "id": 1777147508239,
-        "text": "O'qituvchi shohjahon shahriyev sizga 5 ball qo'shdi!",
-        "time": "26/04/2026 01:05:08",
-        "read": false,
-        "role": "student",
-        "to": "durdona1"
-      },
-      {
-        "id": 1777147287021,
+        "id": 1777287719046,
         "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
-        "time": "26/04/2026 01:01:27",
+        "time": "27/04/2026 16:01:59",
         "read": false,
         "role": "student",
         "to": "durdona"
       },
       {
-        "id": 1777133100948,
-        "text": "O'qituvchi shohjahon shahriyev sizga 3 ball qo'shdi!",
-        "time": "25/04/2026 21:05:00",
+        "id": 1777287703130,
+        "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
+        "time": "27/04/2026 16:01:43",
         "read": false,
         "role": "student",
-        "to": "durdona1"
+        "to": "durdona3"
       },
       {
-        "id": 1777129839305,
+        "id": 1777287697640,
+        "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
+        "time": "27/04/2026 16:01:37",
+        "read": false,
+        "role": "student",
+        "to": "aliyev"
+      },
+      {
+        "id": 1777287686056,
+        "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
+        "time": "27/04/2026 16:01:26",
+        "read": false,
+        "role": "student",
+        "to": "durdona3"
+      },
+      {
+        "id": 1777287681736,
+        "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
+        "time": "27/04/2026 16:01:21",
+        "read": false,
+        "role": "student",
+        "to": "durdona3"
+      },
+      {
+        "id": 1777287589888,
+        "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
+        "time": "27/04/2026 15:59:49",
+        "read": false,
+        "role": "student",
+        "to": "durdona"
+      },
+      {
+        "id": 1777287540192,
+        "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
+        "time": "27/04/2026 15:59:00",
+        "read": false,
+        "role": "student",
+        "to": "durdona"
+      },
+      {
+        "id": 1777287536049,
+        "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
+        "time": "27/04/2026 15:58:56",
+        "read": false,
+        "role": "student",
+        "to": "durdona3"
+      },
+      {
+        "id": 1777287530949,
+        "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
+        "time": "27/04/2026 15:58:50",
+        "read": false,
+        "role": "student",
+        "to": "aliyev"
+      },
+      {
+        "id": 1777287520823,
+        "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
+        "time": "27/04/2026 15:58:40",
+        "read": false,
+        "role": "student",
+        "to": "aliyev"
+      },
+      {
+        "id": 1777283916488,
         "text": "O'qituvchi shohjahon shahriyev sizga 5 ball qo'shdi!",
-        "time": "25/04/2026 20:10:39",
+        "time": "27/04/2026 14:58:36",
         "read": false,
         "role": "student",
-        "to": "durdona"
+        "to": "durdona3"
       },
       {
-        "id": 1777129253485,
+        "id": 1777283910872,
         "text": "O'qituvchi shohjahon shahriyev sizga 5 ball qo'shdi!",
-        "time": "25/04/2026 20:00:53",
+        "time": "27/04/2026 14:58:30",
         "read": false,
         "role": "student",
-        "to": "durdona1"
+        "to": "durdona3"
       },
       {
-        "id": 1777129229637,
-        "text": "O'qituvchi shohjahon shahriyev sizga 3 ball qo'shdi!",
-        "time": "25/04/2026 20:00:29",
+        "id": 1777283888194,
+        "text": "O'qituvchi shohjahon shahriyev sizga 5 ball qo'shdi!",
+        "time": "27/04/2026 14:58:08",
         "read": false,
         "role": "student",
+        "to": "aliyev"
+      },
+      {
+        "id": 1777283623627,
+        "text": "Sizga +1 ball qo'shildi. Umumiy balingiz: 1",
+        "time": "27/04/2026 14:53:43",
+        "read": false,
+        "to": "aliyev"
+      },
+      {
+        "id": 1777281552891,
+        "text": "Sizga +1 ball qo'shildi. Umumiy balingiz: 11",
+        "time": "27/04/2026 14:19:12",
+        "read": false,
         "to": "durdona"
       },
       {
-        "id": 1777065451440,
-        "text": "1",
-        "time": "2026-04-25 02:17",
-        "read": false
+        "id": 1777280688879,
+        "text": "new",
+        "time": "2026-04-27 14:04",
+        "read": true
       },
       {
-        "id": 1776875758358,
-        "text": "🎁 SOVG'A ALMASHILDI: shohjahon shahriyev o'quvchisi o'zining 1 ballini \"uzum\" sovg'asiga almashtirdi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776875726982,
-        "text": "✅ TEST YAKUNLANDI: shohjahon shahriyev - Matematika: 1/1 natija ko'rsatdi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776875725310,
-        "text": "📝 TEST BOSHLANDI: shohjahon shahriyev o'quvchisi Matematika fanidan test yechishni boshladi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776874782334,
-        "text": "ha ",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776874662072,
-        "text": "🎁 SOVG'A ALMASHILDI: shohjahon shahriyev o'quvchisi o'zining 1 ballini \"uzum\" sovg'asiga almashtirdi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776874518530,
-        "text": "✅ TEST YAKUNLANDI: shohjahon shahriyev - Matematika: 1/1 natija ko'rsatdi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776874517222,
-        "text": "📝 TEST BOSHLANDI: shohjahon shahriyev o'quvchisi Matematika fanidan test yechishni boshladi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776873975160,
-        "text": "✅ TEST YAKUNLANDI: durdona shaxriyev - Matematika: 1/1 natija ko'rsatdi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776873973824,
-        "text": "📝 TEST BOSHLANDI: durdona shaxriyev o'quvchisi Matematika fanidan test yechishni boshladi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776873394075,
-        "text": "✅ TEST YAKUNLANDI: Abbos Aliev - Matematika: 1/1 natija ko'rsatdi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776873392740,
-        "text": "📝 TEST BOSHLANDI: Abbos Aliev o'quvchisi Matematika fanidan test yechishni boshladi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776873102785,
-        "text": "🎁 SOVG'A ALMASHILDI: Abbos Aliev o'quvchisi o'zining 1 ballini \"uzum\" sovg'asiga almashtirdi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776873059367,
-        "text": "✅ TEST YAKUNLANDI: Abbos Aliev - Matematika: 1/1 natija ko'rsatdi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776873056095,
-        "text": "📝 TEST BOSHLANDI: Abbos Aliev o'quvchisi Matematika fanidan test yechishni boshladi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776872898321,
-        "text": "✅ TEST YAKUNLANDI: Abbos Aliev - Matematika: 1/1 natija ko'rsatdi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776872894766,
-        "text": "📝 TEST BOSHLANDI: Abbos Aliev o'quvchisi Matematika fanidan test yechishni boshladi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776872515409,
-        "text": "🎁 SOVG'A ALMASHILDI: Abbos Aliev o'quvchisi o'zining 1 ballini \"uzum\" sovg'asiga almashtirdi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776872509082,
-        "text": "🎁 SOVG'A ALMASHILDI: Abbos Aliev o'quvchisi o'zining 1 ballini \"uzum\" sovg'asiga almashtirdi.",
-        "time": "Hozir",
-        "read": false
-      },
-      {
-        "id": 1776872145852,
-        "text": "🎁 SOVG'A ALMASHILDI: Abbos Aliev o'quvchisi o'zining 1 ballini \"uzum\" sovg'asiga almashtirdi.",
-        "time": "Hozir",
-        "read": false
+        "id": 1777278483901,
+        "text": "j",
+        "time": "2026-04-27 13:28",
+        "read": true
       }
     ],
-    "visitors": 2161
+    "visitors": 2169
   },
   "schedules": [
     {

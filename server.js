@@ -197,6 +197,32 @@ app.post('/api/notifications', (req, res) => {
     res.json({ success: true });
 });
 
+app.delete('/api/notifications/:id', (req, res) => {
+    const db = readDB();
+    const idToDelete = req.params.id;
+    console.log(`Attempting to delete notification with ID: ${idToDelete}`);
+    
+    const initialCount = db.appData.notifications.length;
+    db.appData.notifications = db.appData.notifications.filter(n => n.id.toString() !== idToDelete.toString());
+    
+    const finalCount = db.appData.notifications.length;
+    console.log(`Deleted ${initialCount - finalCount} notifications.`);
+    
+    writeDB(db);
+    broadcastUpdate();
+    res.json({ success: true, deleted: initialCount - finalCount });
+});
+
+app.post('/api/notifications/:id/read', (req, res) => {
+    const db = readDB();
+    const notif = db.appData.notifications.find(n => n.id == req.params.id);
+    if (notif) {
+        notif.read = true;
+        writeDB(db);
+        res.json({ success: true });
+    } else res.status(404).json({ success: false });
+});
+
 app.post('/api/user/score', (req, res) => {
     const { username, scoreDelta, subjectId } = req.body;
     const db = readDB();
