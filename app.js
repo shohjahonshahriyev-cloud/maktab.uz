@@ -1,6 +1,8 @@
 // API Configuration
-const API_BASE = '/api';
-const socket = io();
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+    ? 'http://localhost:3005/api' 
+    : '/api';
+const socket = io(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3005' : undefined);
 
 let notifCount = 0;
 const notifSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
@@ -84,6 +86,27 @@ async function initPushNotifications(showFeedback = false) {
             showCustomAlert("Sizning brauzeringiz bu funksiyani qo'llab-quvvatlamaydi.");
         }
     }
+}
+
+function checkNotifPermission() {
+    // Only prompt if permission is 'default' (not yet asked)
+    if (window.Notification && Notification.permission === 'default') {
+        setTimeout(() => {
+            const prompt = document.getElementById('notif-prompt');
+            if (prompt) prompt.classList.remove('hidden');
+        }, 1500);
+    }
+}
+
+function closeNotifPrompt() {
+    const prompt = document.getElementById('notif-prompt');
+    if (prompt) prompt.classList.add('hidden');
+}
+
+async function enableNotificationsUI() {
+    closeNotifPrompt();
+    unlockAudio(); // Unlock audio on this user gesture
+    await initPushNotifications(true);
 }
 
 function getCurrentTime() {
@@ -384,6 +407,7 @@ async function handleLoginV2() {
                 testsTaken: foundUser.testsTaken || 0,
                 username: foundUser.user,
                 role: foundUser.role,
+                subject: foundUser.subject || '',
                 completedTests: foundUser.completedTests || {}
             };
 
@@ -408,6 +432,7 @@ async function handleLoginV2() {
             else currentSection = 'home';
 
             renderSection();
+            checkNotifPermission();
             
             // UI adjustments
             const topProfileBtn = document.getElementById('profile-btn');
@@ -665,6 +690,11 @@ function renderSection() {
                 content.style.overflowY = 'auto';
                 content.style.maxHeight = 'none';
                 break;
+            case 'diary':
+                renderDiary(content);
+                content.style.overflowY = 'auto';
+                content.style.maxHeight = 'none';
+                break;
             default:
                 content.style.overflowY = 'auto';
                 content.style.maxHeight = 'none';
@@ -685,33 +715,123 @@ function renderSection() {
 }
 
 function renderTeacher(container) {
+    const teacherSubjectId = APP_DATA.user.subject;
+    const subject = APP_DATA.subjects.find(s => s.id === teacherSubjectId);
+    
+    if (!subject) {
+        container.innerHTML = `<div class="glass-card" style="padding:20px; text-align:center;">
+            <p>Sizga fan biriktirilmagan. Iltimos admin bilan bog'laning.</p>
+            <button class="buy-btn" onclick="renderSection()">Qayta yuklash</button>
+        </div>`;
+        return;
+    }
+
     const classes = [...new Set(APP_DATA.users
         .filter(u => u.role === 'student' && u.class)
         .map(u => u.class)
     )].sort();
 
+    const teacherQuestions = (subject.questions || []).filter(q => q.author === APP_DATA.user.username || q.author === APP_DATA.user.user);
+
     container.innerHTML = `
-        <div id="teacher-view-container" class="fade-in" style="display: flex; flex-direction: column; gap: 10px;">
-            <div class="glass-card fade-in" style="padding: 15px; margin-bottom: 0; text-align: center; cursor: pointer; border: 1px solid var(--secondary); display: flex; align-items: center; justify-content: center; gap: 15px;" onclick="renderAnalyticsView()">
-                <i class="fa-solid fa-chart-bar" style="font-size: 1.5rem; color: var(--secondary);"></i>
+        <div id="teacher-view-container" class="fade-in" style="display: flex; flex-direction: column; gap: 15px;">
+            <!-- Header Greeting -->
+            <div class="glass-card" style="padding: 15px; display: flex; align-items: center; justify-content: space-between;">
                 <div>
-                    <h3 style="font-size: 1rem; margin: 0;">Sinflar Analitikasi</h3>
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">Grafiklarni ko'rish</p>
+                    <h2 style="font-size: 1.1rem; margin: 0;">Salom, ${APP_DATA.user.name.split(' ')[0]}! 👋</h2>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">${subject.name} fani o'qituvchisi</p>
+                </div>
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; color: white;">
+                    <i class="fa-solid ${subject.icon}"></i>
                 </div>
             </div>
-            
-            <div class="glass-card fade-in" style="padding: 12px; flex: 1;">
-                <h3 style="margin-bottom: 10px; font-size: 1rem; text-align: center;">Sinflarni tanlang</h3>
-                <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
-                    ${classes.length > 0 ? classes.map(cls => `
-                        <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid var(--primary); cursor: pointer; background: rgba(var(--primary-rgb), 0.1); margin-bottom: 0;" onclick="renderTeacherView('class-students', '${cls}')">
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <div style="width: 40px; height: 40px; background: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: 800; color: white;">${cls.split('-')[0]}</div>
-                                <span style="font-size: 1rem; font-weight: 600;">${cls}-sinf</span>
-                            </div>
-                            <i class="fa-solid fa-chevron-right" style="font-size: 0.8rem;"></i>
+
+            <!-- Main Tabs -->
+            <div style="display: flex; gap: 10px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 12px;">
+                <button id="main-tab-test" onclick="switchMainTeacherTab('test')" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: var(--primary); color: white; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: 0.3s;">
+                    <i class="fa-solid fa-list-check"></i> Testlar
+                </button>
+                <button id="main-tab-classes" onclick="switchMainTeacherTab('classes')" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: transparent; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: 0.3s;">
+                    <i class="fa-solid fa-users"></i> Sinflar
+                </button>
+                <button id="main-tab-analytics" onclick="switchMainTeacherTab('analytics')" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: transparent; color: var(--text-muted); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: 0.3s;">
+                    <i class="fa-solid fa-chart-line"></i> Analitika
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div id="teacher-main-content">
+                <!-- Test Section (Default) -->
+                <div id="section-test" class="fade-in">
+                    <div class="glass-card custom-scrollbar" style="padding: 15px; max-height: 65vh; overflow-y: auto;">
+                        <div style="display: flex; gap: 8px; margin-bottom: 15px; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 10px;">
+                            <button id="t-subtab-add" onclick="switchTestSubTab('add')" style="flex: 1; padding: 8px; border: none; border-radius: 6px; background: var(--primary); color: white; font-size: 0.75rem; font-weight: 600; cursor: pointer;">Qo'shish</button>
+                            <button id="t-subtab-list" onclick="switchTestSubTab('list')" style="flex: 1; padding: 8px; border: none; border-radius: 6px; background: transparent; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; cursor: pointer;">Mening testlarim</button>
                         </div>
-                    `).join('') : '<p style="text-align:center; color:var(--text-muted); padding:20px;">Sinflar topilmadi</p>'}
+
+                        <div id="t-form-area">
+                            <div style="display: grid; gap: 12px;">
+                                <select id="t-q-class" style="width:100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; padding: 10px; border-radius: 10px; font-size: 0.85rem;">
+                                    <option value="" style="background:#1a1a2e;">Sinfni tanlang...</option>
+                                    <option value="all" style="background:#1a1a2e;">Barcha sinflar</option>
+                                    ${classes.map(cls => `<option value="${cls}" style="background:#1a1a2e;">${cls}-sinf</option>`).join('')}
+                                </select>
+                                <textarea id="t-q-text" placeholder="Savol matni..." style="width:100%; height:80px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; padding: 10px; border-radius: 10px; font-size: 0.85rem; resize: none;"></textarea>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                    ${[1, 2, 3, 4].map(num => `<input type="text" id="t-q-opt${num}" placeholder="${String.fromCharCode(64+num)}-variant" style="width:100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; padding: 8px; border-radius: 8px; font-size: 0.8rem;">`).join('')}
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                                    ${[0, 1, 2, 3].map(val => `<button onclick="selectCorrectVariant(${val})" id="variant-btn-${val}" class="variant-select-btn ${val === 0 ? 'active' : ''}" style="padding: 8px; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: white; cursor: pointer; font-weight: 700;">${String.fromCharCode(65 + val)}</button>`).join('')}
+                                    <input type="hidden" id="t-q-correct" value="0">
+                                </div>
+                                <button class="buy-btn" onclick="addNewQuestionByTeacher('${teacherSubjectId}')" style="width: 100%; padding: 12px; border-radius: 12px; font-weight: 700;">Saqlash</button>
+                            </div>
+                        </div>
+
+                        <div id="t-list-area" class="hidden">
+                             <div style="display: grid; gap: 10px;">
+                                ${teacherQuestions.length > 0 ? teacherQuestions.map((q, idx) => `
+                                    <div class="glass-card" style="padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); position: relative; border-radius: 12px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                                            <span style="background: var(--primary); color: white; font-size: 0.6rem; padding: 1px 6px; border-radius: 4px; font-weight: 700;">
+                                                ${q.targetClass === 'all' ? 'Hamma' : q.targetClass}
+                                            </span>
+                                            <button onclick="deleteTeacherQuestion('${teacherSubjectId}', ${subject.questions.indexOf(q)})" style="border: none; background: none; color: #ef4444; cursor: pointer;"><i class="fa-solid fa-trash-can" style="font-size: 0.75rem;"></i></button>
+                                        </div>
+                                        <p style="font-size: 0.8rem; margin: 0 0 5px 0;">${q.q}</p>
+                                    </div>
+                                `).join('') : '<p style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:20px;">Hozircha testlar yo\'q.</p>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Classes Section (Hidden) -->
+                <div id="section-classes" class="fade-in hidden">
+                    <div class="glass-card" style="padding: 15px;">
+                        <h3 style="margin-bottom: 12px; font-size: 0.95rem; text-align: center;">O'quvchilar ro'yxati</h3>
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                            ${classes.map(cls => `
+                                <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid var(--primary); cursor: pointer; background: rgba(var(--primary-rgb), 0.1); margin-bottom: 0;" onclick="renderTeacherView('class-students', '${cls}')">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="width: 35px; height: 35px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; color: white;">${cls.split('-')[0]}</div>
+                                        <span style="font-size: 0.9rem; font-weight: 600;">${cls}-sinf</span>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem;"></i>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Section (Hidden) -->
+                <div id="section-analytics" class="fade-in hidden">
+                    <div class="glass-card" style="padding: 15px; text-align: center;">
+                        <i class="fa-solid fa-chart-pie" style="font-size: 2.5rem; color: var(--secondary); margin-bottom: 10px; opacity: 0.5;"></i>
+                        <h3 style="font-size: 1rem;">Tez kunda...</h3>
+                        <p style="font-size: 0.8rem; color: var(--text-muted);">Sinflar bo'yicha batafsil statistika va grafiklar kiritilmoqda.</p>
+                        <button class="buy-btn" onclick="renderAnalyticsView()" style="margin-top: 10px; font-size: 0.8rem;">Eski variantni ko'rish</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -755,6 +875,142 @@ async function renderTeacherView(view, param) {
                 </div>
             </div>
         `;
+    } else if (view === 'test-manager') {
+        const teacherSubjectId = APP_DATA.user.subject;
+        const subject = APP_DATA.subjects.find(s => s.id === teacherSubjectId);
+        const classes = [...new Set(APP_DATA.users
+            .filter(u => u.role === 'student' && u.class)
+            .map(u => u.class)
+        )].sort();
+
+        if (!subject) {
+            container.innerHTML = `<div class="glass-card" style="padding:20px; text-align:center;">
+                <p>Sizga fan biriktirilmagan. Iltimos admin bilan bog'laning.</p>
+                <button class="buy-btn" onclick="renderSection()">Orqaga</button>
+            </div>`;
+            return;
+        }
+
+        const teacherQuestions = (subject.questions || []).filter(q => q.author === APP_DATA.user.username || q.author === APP_DATA.user.user);
+
+        container.innerHTML = `
+            <div class="glass-card fade-in custom-scrollbar" style="padding: 20px; max-height: 85vh; overflow-y: auto;">
+                <!-- Header -->
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div onclick="renderSection()" style="width: 35px; height: 35px; border-radius: 10px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                            <i class="fa-solid fa-arrow-left" style="font-size: 0.9rem;"></i>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 1.1rem; margin: 0;">Test Boshqaruvi</h3>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">${subject.name} fani</p>
+                        </div>
+                    </div>
+                    <div style="width: 45px; height: 45px; border-radius: 12px; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2rem; box-shadow: var(--primary-glow);">
+                        <i class="fa-solid ${subject.icon}"></i>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 12px;">
+                    <button id="tab-add" onclick="switchTestTab('add')" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: var(--primary); color: white; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.3s;">
+                        <i class="fa-solid fa-plus-circle"></i> Yangi qo'shish
+                    </button>
+                    <button id="tab-list" onclick="switchTestTab('list')" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: transparent; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.3s;">
+                        <i class="fa-solid fa-list"></i> Mening testlarim
+                    </button>
+                </div>
+
+                <!-- Add Form -->
+                <div id="test-form-section" class="fade-in">
+                    <div style="display: grid; gap: 15px;">
+                        <div class="input-group-v2">
+                            <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; display: block;">Maqsadli sinf</label>
+                            <select id="t-q-class" style="width:100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; padding: 12px; border-radius: 12px; font-size: 0.9rem;">
+                                <option value="" style="background:#1a1a2e;">Sinfni tanlang...</option>
+                                <option value="all" style="background:#1a1a2e;">Barcha sinflar</option>
+                                ${classes.map(cls => `<option value="${cls}" style="background:#1a1a2e;">${cls}-sinf</option>`).join('')}
+                            </select>
+                        </div>
+
+                        <div class="input-group-v2">
+                            <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; display: block;">Savol matni</label>
+                            <textarea id="t-q-text" placeholder="Savol matnini kiriting..." style="width:100%; height:100px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; padding: 12px; border-radius: 12px; font-size: 0.9rem; resize: none;"></textarea>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            ${[1, 2, 3, 4].map(num => `
+                                <div class="input-group-v2">
+                                    <label style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 3px; display: block;">${String.fromCharCode(64 + num)}-variant</label>
+                                    <input type="text" id="t-q-opt${num}" placeholder="..." style="width:100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; padding: 10px; border-radius: 10px; font-size: 0.85rem;">
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="input-group-v2">
+                            <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; display: block;">To'g'ri javob</label>
+                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                                ${[0, 1, 2, 3].map(val => `
+                                    <button onclick="selectCorrectVariant(${val})" id="variant-btn-${val}" class="variant-select-btn ${val === 0 ? 'active' : ''}" style="padding: 10px; border-radius: 10px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: white; cursor: pointer; font-weight: 700; transition: 0.3s;">
+                                        ${String.fromCharCode(65 + val)}
+                                    </button>
+                                `).join('')}
+                                <input type="hidden" id="t-q-correct" value="0">
+                            </div>
+                        </div>
+
+                        <button class="buy-btn" onclick="addNewQuestionByTeacher('${teacherSubjectId}')" style="width: 100%; padding: 15px; border-radius: 15px; font-weight: 700; margin-top: 10px; font-size: 1rem; box-shadow: var(--primary-glow);">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Testni Saqlash
+                        </button>
+                    </div>
+                </div>
+
+                <!-- List Section -->
+                <div id="test-list-section" class="fade-in hidden">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h4 style="margin: 0; font-size: 0.9rem; color: var(--text-muted);">Mavjud savollar: ${teacherQuestions.length} ta</h4>
+                    </div>
+                    <div style="display: grid; gap: 12px;">
+                        ${teacherQuestions.length > 0 ? teacherQuestions.map((q, idx) => `
+                            <div class="glass-card" style="padding: 15px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); position: relative; border-radius: 15px;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                    <span style="background: var(--primary); color: white; font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; font-weight: 700;">
+                                        ${q.targetClass === 'all' ? 'Barcha sinflar' : q.targetClass + '-sinf'}
+                                    </span>
+                                    <button onclick="deleteTeacherQuestion('${teacherSubjectId}', ${subject.questions.indexOf(q)})" 
+                                            style="width: 30px; height: 30px; border-radius: 8px; border: none; background: rgba(239, 68, 68, 0.1); color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s;">
+                                        <i class="fa-solid fa-trash-can" style="font-size: 0.8rem;"></i>
+                                    </button>
+                                </div>
+                                <p style="font-size: 0.9rem; font-weight: 500; margin: 0 0 10px 0; line-height: 1.4;">${q.q}</p>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                    ${q.options.map((opt, i) => `
+                                        <div style="font-size: 0.75rem; padding: 6px 10px; border-radius: 8px; background: ${i === q.correct ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255,255,255,0.02)'}; border: 1px solid ${i === q.correct ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255,255,255,0.05)'}; color: ${i === q.correct ? '#22c55e' : 'var(--text-muted)'};">
+                                            <span style="font-weight: 700; margin-right: 5px;">${String.fromCharCode(65 + i)}:</span> ${opt}
+                                            ${i === q.correct ? '<i class="fa-solid fa-check" style="float: right; margin-top: 2px;"></i>' : ''}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `).join('') : `
+                            <div style="text-align: center; padding: 50px 20px;">
+                                <i class="fa-solid fa-clipboard-question" style="font-size: 3rem; color: var(--text-muted); opacity: 0.2; margin-bottom: 15px;"></i>
+                                <p style="color: var(--text-muted); font-size: 0.9rem;">Hozircha hech qanday test qo'shmagansiz.</p>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            </div>
+            
+            <style>
+                .variant-select-btn.active {
+                    background: var(--primary) !important;
+                    border-color: var(--primary) !important;
+                    box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+                }
+                .input-group-v2 label { font-weight: 600; letter-spacing: 0.2px; }
+            </style>
+        `;
     } else if (view === 'class-students') {
         container.innerHTML = `
             <div class="glass-card fade-in" style="padding: 20px; text-align: center;">
@@ -796,13 +1052,21 @@ async function renderTeacherView(view, param) {
                                     <div style="font-weight: 700; color: var(--secondary);">${s.score || 0} ball</div>
                                 </div>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 12px;">
-                                <span style="font-size: 0.8rem; color: var(--text-muted); flex-shrink: 0;">Ball qo'shish:</span>
-                                <input type="number" id="pts-${s.user}" min="1" max="5" value="1" 
-                                    style="width: 50px; background: transparent; border: 1px solid var(--glass-border); color: white; padding: 5px; border-radius: 8px; text-align: center;">
-                                <button class="buy-btn" style="padding: 8px 15px; font-size: 0.8rem; flex-grow: 1;" onclick="addPointsToStudent('${s.user}')">
-                                    <i class="fa-solid fa-plus"></i> Qo'shish
-                                </button>
+                            <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 12px;">
+                                <div style="margin-bottom: 8px;">
+                                    <select id="subj-${s.user}" style="width:100%; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: white; padding: 8px; border-radius: 8px; font-size: 0.8rem;">
+                                        <option value="" style="background:#1a1a2e;">Fan tanlang...</option>
+                                        ${(APP_DATA.subjects||[]).map(sub => `<option value="${sub.id}" style="background:#1a1a2e;">${sub.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="font-size: 0.8rem; color: var(--text-muted); flex-shrink: 0;">Ball:</span>
+                                    <input type="number" id="pts-${s.user}" min="1" max="5" value="5" 
+                                        style="width: 50px; background: transparent; border: 1px solid var(--glass-border); color: white; padding: 5px; border-radius: 8px; text-align: center;">
+                                    <button class="buy-btn" style="padding: 8px 15px; font-size: 0.8rem; flex-grow: 1;" onclick="addPointsToStudent('${s.user}')">
+                                        <i class="fa-solid fa-plus"></i> Qo'shish
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     `).join('') : `
@@ -820,14 +1084,22 @@ async function renderTeacherView(view, param) {
 
 async function addPointsToStudent(studentUsername) {
     const pointsInput = document.getElementById(`pts-${studentUsername}`);
+    const subjectSelect = document.getElementById(`subj-${studentUsername}`);
     const points = parseInt(pointsInput.value);
+    const subjectId = subjectSelect ? subjectSelect.value : '';
+
+    if (!subjectId) {
+        showCustomAlert("Iltimos, fanni tanlang!");
+        return;
+    }
 
     if (isNaN(points) || points < 1 || points > 5) {
         showCustomAlert("Maksimal 5 ball qo'shish mumkin!");
         return;
     }
 
-    const confirm = await showCustomConfirm("Ball qo'shish", `${studentUsername}ga ${points} ball qo'shmoqchimisiz?`);
+    const subjName = subjectSelect.options[subjectSelect.selectedIndex].text;
+    const confirm = await showCustomConfirm("Ball qo'shish", `${studentUsername}ga ${subjName} fanidan ${points} ball qo'shmoqchimisiz?`);
     if (!confirm) return;
 
     try {
@@ -838,7 +1110,8 @@ async function addPointsToStudent(studentUsername) {
             body: JSON.stringify({
                 teacherUsername: teacherU,
                 studentUsername: studentUsername,
-                points: points
+                points: points,
+                subjectId: subjectId
             })
         });
 
@@ -1701,6 +1974,143 @@ async function addNewQuestion() {
     }
 }
 
+async function addNewQuestionByTeacher(subjectId) {
+    const targetClass = document.getElementById('t-q-class').value;
+    const text = document.getElementById('t-q-text').value;
+    const options = [
+        document.getElementById('t-q-opt1').value,
+        document.getElementById('t-q-opt2').value,
+        document.getElementById('t-q-opt3').value,
+        document.getElementById('t-q-opt4').value
+    ];
+    const correct = parseInt(document.getElementById('t-q-correct').value);
+
+    if (!targetClass || !text || options.some(o => !o)) {
+        showCustomAlert("Iltimos, barcha maydonlarni to'ldiring!");
+        return;
+    }
+
+    const question = { 
+        q: text, 
+        options, 
+        correct, 
+        targetClass, 
+        author: APP_DATA.user.username || APP_DATA.user.user,
+        timestamp: Date.now()
+    };
+
+    try {
+        const response = await fetch(`${API_BASE}/questions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subjectId, question })
+        });
+
+        if (response.ok) {
+            await fetchData();
+            showCustomAlert("Savol muvaffaqiyatli qo'shildi!");
+            renderTeacherView('test-manager');
+        } else {
+            showCustomAlert("Xatolik yuz berdi!");
+        }
+    } catch (error) {
+        showCustomAlert("Server bilan bog'lanishda xato!");
+    }
+}
+
+window.switchMainTeacherTab = (tab) => {
+    const tabs = ['test', 'classes', 'analytics'];
+    tabs.forEach(t => {
+        const btn = document.getElementById(`main-tab-${t}`);
+        const section = document.getElementById(`section-${t}`);
+        if (t === tab) {
+            btn.style.background = 'var(--primary)';
+            btn.style.color = 'white';
+            section.classList.remove('hidden');
+        } else {
+            btn.style.background = 'transparent';
+            btn.style.color = 'var(--text-muted)';
+            section.classList.add('hidden');
+        }
+    });
+};
+
+window.switchTestSubTab = (tab) => {
+    const addBtn = document.getElementById('t-subtab-add');
+    const listBtn = document.getElementById('tab-list'); // Wait, I named it t-subtab-list in HTML
+    const addBtnActual = document.getElementById('t-subtab-add');
+    const listBtnActual = document.getElementById('t-subtab-list');
+    const formArea = document.getElementById('t-form-area');
+    const listArea = document.getElementById('t-list-area');
+
+    if (tab === 'add') {
+        addBtnActual.style.background = 'var(--primary)';
+        addBtnActual.style.color = 'white';
+        listBtnActual.style.background = 'transparent';
+        listBtnActual.style.color = 'var(--text-muted)';
+        formArea.classList.remove('hidden');
+        listArea.classList.add('hidden');
+    } else {
+        listBtnActual.style.background = 'var(--primary)';
+        listBtnActual.style.color = 'white';
+        addBtnActual.style.background = 'transparent';
+        addBtnActual.style.color = 'var(--text-muted)';
+        listArea.classList.remove('hidden');
+        formArea.classList.add('hidden');
+    }
+};
+
+window.switchTestTab = (tab) => {
+    const addTab = document.getElementById('tab-add');
+    const listTab = document.getElementById('tab-list');
+    const addSection = document.getElementById('test-form-section');
+    const listSection = document.getElementById('test-list-section');
+
+    if (tab === 'add') {
+        addTab.style.background = 'var(--primary)';
+        addTab.style.color = 'white';
+        listTab.style.background = 'transparent';
+        listTab.style.color = 'var(--text-muted)';
+        addSection.classList.remove('hidden');
+        listSection.classList.add('hidden');
+    } else {
+        listTab.style.background = 'var(--primary)';
+        listTab.style.color = 'white';
+        addTab.style.background = 'transparent';
+        addTab.style.color = 'var(--text-muted)';
+        listSection.classList.remove('hidden');
+        addSection.classList.add('hidden');
+    }
+};
+
+window.selectCorrectVariant = (val) => {
+    document.getElementById('t-q-correct').value = val;
+    document.querySelectorAll('.variant-select-btn').forEach((btn, i) => {
+        if (i === val) btn.classList.add('active');
+        else btn.classList.remove('active');
+    });
+};
+
+async function deleteTeacherQuestion(subjectId, index) {
+    const confirm = await showCustomConfirm("O'chirish", "Haqiqatan ham bu savolni o'chirmoqchimisiz?");
+    if (!confirm) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/questions/${subjectId}/${index}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            await fetchData();
+            renderTeacherView('test-manager');
+        } else {
+            showCustomAlert("Xatolik yuz berdi!");
+        }
+    } catch (error) {
+        showCustomAlert("Server bilan bog'lanishda xato!");
+    }
+}
+
 async function addNewUser() {
     const fullName = document.getElementById('new-user-fullname').value;
     const userClass = document.getElementById('new-user-class').value;
@@ -1857,6 +2267,7 @@ function renderHome(container) {
             `).join('')}
         </div>
 
+        ${!isTeacher ? `
         <div class="glass-card" onclick="navigateTo('schedule')" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; margin-top: 5px; padding: 12px;">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <div style="width: 42px; height: 42px; border-radius: 12px; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2rem;">
@@ -1868,7 +2279,21 @@ function renderHome(container) {
                 </div>
             </div>
             <i class="fa-solid fa-chevron-right" style="color: var(--text-muted); font-size: 0.8rem;"></i>
-        </div>
+        </div>` : ''}
+
+        ${!isAdmin && !isTeacher ? `
+        <div class="glass-card" onclick="navigateTo('diary')" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; margin-top: 5px; padding: 12px; background: linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(234,179,8,0.05) 100%); border: 1px solid rgba(245,158,11,0.25);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #f59e0b, #eab308); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2rem; box-shadow: 0 4px 12px rgba(245,158,11,0.35);">
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1rem; font-weight: 700;">Mening Kundaligim</h3>
+                    <p style="margin: 0; font-size: 0.75rem; color: var(--text-muted);">Baholar va natijalar tarixi</p>
+                </div>
+            </div>
+            <i class="fa-solid fa-chevron-right" style="color: var(--text-muted); font-size: 0.8rem;"></i>
+        </div>` : ''}
 
         <div class="glass-card fade-in" style="margin-top: 5px; padding: 12px; background: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(168,85,247,0.05) 100%); border: 1px solid rgba(99,102,241,0.2); border-radius: 20px;">
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
@@ -1893,6 +2318,207 @@ function renderHome(container) {
             <a href="https://www.instagram.com/maktabimhayoti/?__pwa=1#" target="_blank" class="social-btn ig-btn" style="padding: 10px; font-size: 0.8rem; height: 40px;"><i class="fa-brands fa-instagram"></i> Instagram</a>
         </div>
     `;
+}
+
+function renderDiary(container) {
+    // ── helpers ──────────────────────────────────────────────
+    const MONTHS   = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+    const DAY_SHORT = ['Ya','Du','Se','Ch','Pa','Ju','Sh'];
+    const DAY_FULL  = ['Yakshanba','Dushanba','Seshanba','Chorshanba','Payshanba','Juma','Shanba'];
+    const DAY_KEYS  = ['yakshanba','dushanba','seshanba','chorshanba','payshanba','juma','shanba'];
+    const TIMES     = ['08:00 – 08:45','08:55 – 09:40','09:45 – 10:30','10:40 – 11:25','11:35 – 12:20','12:25 – 13:10','13:15 – 14:00'];
+    const ICONS     = {
+        'matematika':'#6366f1','ona tili':'#f59e0b','ingliz tili':'#22c55e',
+        'rus tili':'#ef4444','tarix':'#8b5cf6','informatika':'#3b82f6',
+        'fizika':'#a855f7','kimyo':'#ef4444','biologiya':'#84cc16',
+        'geografiya':'#06b6d4','adabiyot':'#f97316','jismoniy':'#10b981',
+        'musiqa':'#ec4899','huquq':'#78716c','texnologiya':'#64748b','tarbiya':'#ec4899'
+    };
+    function iconColor(name){ const k=Object.keys(ICONS).find(k=>name.toLowerCase().includes(k)); return k?ICONS[k]:'#6366f1'; }
+    function iconLetter(name){ return name.trim().slice(0,2).toUpperCase(); }
+    function gradeInfo(p){ if(p>=5)return{c:'#22c55e',bg:'rgba(34,197,94,0.15)',t:"A'lo"};if(p>=4)return{c:'#f59e0b',bg:'rgba(245,158,11,0.15)',t:'Yaxshi'};if(p>=3)return{c:'#f97316',bg:'rgba(249,115,22,0.15)',t:'Qoniqarli'};return{c:'#ef4444',bg:'rgba(239,68,68,0.15)',t:'Past'}; }
+    function weekMonday(d){ const x=new Date(d); const day=x.getDay(); x.setDate(x.getDate()-(day===0?6:day-1)); return x; }
+    function sameDay(a,b){ return a.toDateString()===b.toDateString(); }
+    function fmtDate(d){ return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${d.getFullYear()}`; }
+
+    // ── state ─────────────────────────────────────────────────
+    const user = APP_DATA.user;
+    const uname = user.username||user.user;
+    const su = (APP_DATA.users||[]).find(u=>u.user===uname);
+    const grades = su&&su.grades ? su.grades : [];
+    window._dD = new Date();
+
+    function getSubjects(dayKey){
+        if(!APP_DATA.schedules) return [];
+        const sch = APP_DATA.schedules.find(s=>s.class===user.class);
+        if(!sch||!sch.days[dayKey]) return [];
+        return sch.days[dayKey].split('\n').filter(s=>s.trim());
+    }
+    function getTeacher(subj){
+        const teachers = (APP_DATA.users||[]).filter(u=>u.role==='teacher');
+        const t = teachers.find(u=>{
+            if(u.class&&u.class.toLowerCase().includes(subj.toLowerCase().split(' ')[0])) return true;
+            if(u.subject){
+                const s=(APP_DATA.subjects||[]).find(x=>x.id===u.subject);
+                if(s&&s.name&&s.name.toLowerCase()===subj.toLowerCase()) return true;
+            }
+            return false;
+        });
+        if(t){ const p=t.name.split(' '); return p[0][0]+'. '+p.slice(1).join(' '); }
+        return '—';
+    }
+    function getGradeForSubjDate(subj, dateStr){
+        const name = subj.trim().toLowerCase();
+        if(name.length < 3) return null;
+        return grades.find(g=>{
+            if(g.date !== dateStr) return false;
+            // First try exact subjectName match
+            if(g.subjectName && g.subjectName.toLowerCase() === name) return true;
+            // Fallback: match by label
+            if(g.label){
+                const label = g.label.toLowerCase();
+                return label === name || label.includes(name);
+            }
+            return false;
+        });
+    }
+
+    // ── render week content ───────────────────────────────────
+    function renderContent(){
+        const sel = window._dD;
+        const mon = weekMonday(sel);
+        const days = Array.from({length:7},(_,i)=>{ const d=new Date(mon); d.setDate(mon.getDate()+i); return d; });
+        const sun = days[6];
+        const weekLabel = `${mon.getDate()} — ${sun.getDate()} ${MONTHS[sun.getMonth()].toLowerCase()} ${sun.getFullYear()}`;
+
+        const pillsHtml = days.map(d=>{
+            const dw = d.getDay();
+            const active = sameDay(d,sel);
+            return `<div onclick="window._dD=new Date(${d.getFullYear()},${d.getMonth()},${d.getDate()});renderDiaryContent()"
+                style="flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 2px;border-radius:14px;cursor:pointer;
+                       background:${active?'linear-gradient(135deg,#2563eb,#1d4ed8)':'rgba(255,255,255,0.06)'};
+                       color:${active?'white':'var(--text-muted)'};
+                       box-shadow:${active?'0 4px 14px rgba(37,99,235,0.4)':'none'};transition:all 0.2s;">
+                <span style="font-size:0.6rem;font-weight:600;margin-bottom:3px;">${DAY_SHORT[dw]}</span>
+                <span style="font-size:0.95rem;font-weight:800;">${d.getDate()}</span>
+                <span style="font-size:0.55rem;margin-top:2px;opacity:0.7;">${MONTHS[d.getMonth()].slice(0,3)}</span>
+            </div>`;
+        }).join('');
+
+        const dw = sel.getDay();
+        const dayKey = DAY_KEYS[dw];
+        const dateStr = fmtDate(sel);
+        const subjects = getSubjects(dayKey);
+
+        let tableHtml = '';
+        // Summer vacation: May 25 – September 4
+        const selMonth = sel.getMonth(); // 0-indexed (4=May, 8=Sep)
+        const selDate = sel.getDate();
+        const isVacation = (selMonth === 4 && selDate >= 25) || (selMonth >= 5 && selMonth <= 7) || (selMonth === 8 && selDate <= 4);
+        if(isVacation){
+            tableHtml = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+                <i class="fa-solid fa-umbrella-beach" style="font-size:2.5rem;color:#fbbf24;display:block;margin-bottom:12px;"></i>
+                <p style="font-weight:700;font-size:1.05rem;color:#fbbf24;">☀️ Yozgi ta'til!</p>
+                <p style="font-size:0.82rem;margin-top:6px;">25-Maydan 4-Sentyabrgacha darslar bo'lmaydi.</p>
+                <p style="font-size:0.75rem;margin-top:4px;">Yaxshi dam oling! 🏖️</p></div>`;
+        } else if(dw===0){
+            tableHtml = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+                <i class="fa-solid fa-sun" style="font-size:2.5rem;color:#fbbf24;display:block;margin-bottom:12px;"></i>
+                <p style="font-weight:600;">Dam olish kuni</p><p style="font-size:0.8rem;">Yakshanba kuni darslar yo'q</p></div>`;
+        } else if(!subjects.length){
+            tableHtml = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+                <i class="fa-solid fa-calendar-xmark" style="font-size:2.5rem;display:block;margin-bottom:12px;"></i>
+                <p style="font-weight:600;">Jadval kiritilmagan</p></div>`;
+        } else {
+            const rows = subjects.map((subj,i)=>{
+                const ic=iconColor(subj); const il=iconLetter(subj);
+                const teacher=getTeacher(subj);
+                const time=TIMES[i]||'';
+                const ge=getGradeForSubjDate(subj,dateStr);
+                let gradeCell='';
+                if(ge){ const gi=gradeInfo(ge.points);
+                    gradeCell=`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                        <div style="width:34px;height:34px;border-radius:9px;background:${gi.bg};border:1.5px solid ${gi.c}40;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:${gi.c};">${ge.points}</div>
+                        <span style="font-size:0.55rem;color:${gi.c};font-weight:700;">${gi.t}</span></div>`;
+                } else {
+                    gradeCell=`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                        <div style="width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;font-size:0.9rem;color:var(--text-muted);">—</div>
+                        <span style="font-size:0.5rem;color:var(--text-muted);">Baholanmagan</span></div>`;
+                }
+                return `<tr style="border-bottom:1px solid rgba(255,255,255,0.06);">
+                    <td style="padding:11px 6px;">
+                        <div style="display:flex;align-items:center;gap:9px;">
+                            <div style="width:36px;height:36px;border-radius:10px;background:${ic};display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:white;flex-shrink:0;">${il}</div>
+                            <div style="font-size:0.82rem;font-weight:700;">${subj.trim()}</div>
+                        </div>
+                    </td>
+                    <td style="padding:11px 4px;font-size:0.7rem;color:var(--text-muted);white-space:nowrap;">${time}</td>
+                    <td style="padding:11px 4px;font-size:0.7rem;color:var(--text-muted);white-space:nowrap;">${teacher}</td>
+                    <td style="padding:11px 4px;text-align:center;">${gradeCell}</td>
+                </tr>`;
+            }).join('');
+
+            tableHtml = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <i class="fa-regular fa-calendar-days" style="color:#2563eb;"></i>
+                        <span style="font-size:0.88rem;font-weight:700;">${sel.getDate()}-${MONTHS[dw<=0?0:dw-1]?'':''} ${MONTHS[sel.getMonth()].slice(0,3).toLowerCase()}, ${DAY_FULL[dw]}</span>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.08);padding:5px 11px;border-radius:10px;font-size:0.72rem;color:var(--text-muted);cursor:pointer;">
+                        Barcha fanlar <i class="fa-solid fa-chevron-down" style="font-size:0.55rem;"></i>
+                    </div>
+                </div>
+                <div style="border-radius:14px;overflow:hidden;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr style="background:rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.08);">
+                                <th style="padding:9px 6px;text-align:left;font-size:0.68rem;color:var(--text-muted);font-weight:600;">Fan</th>
+                                <th style="padding:9px 4px;text-align:left;font-size:0.68rem;color:var(--text-muted);font-weight:600;">Vaqti</th>
+                                <th style="padding:9px 4px;text-align:left;font-size:0.68rem;color:var(--text-muted);font-weight:600;">O'qituvchi</th>
+                                <th style="padding:9px 4px;text-align:center;font-size:0.68rem;color:var(--text-muted);font-weight:600;">Baho</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
+        }
+
+        document.getElementById('diary-body').innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <button onclick="window._dD.setDate(window._dD.getDate()-7);renderDiaryContent()"
+                    style="border:none;background:rgba(255,255,255,0.08);color:var(--text-main);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:0.8rem;">
+                    <i class="fa-solid fa-chevron-left"></i></button>
+                <span style="font-size:0.82rem;font-weight:600;color:var(--text-main);">${weekLabel}</span>
+                <button onclick="window._dD.setDate(window._dD.getDate()+7);renderDiaryContent()"
+                    style="border:none;background:rgba(255,255,255,0.08);color:var(--text-main);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:0.8rem;">
+                    <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            <div style="display:flex;gap:5px;margin-bottom:16px;">${pillsHtml}</div>
+            <div>${tableHtml}</div>`;
+    }
+
+    window.renderDiaryContent = renderContent;
+
+    // ── skeleton HTML ─────────────────────────────────────────
+    container.innerHTML = `
+        <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);margin:-10px -15px 0;padding:18px 18px 20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <button onclick="navigateTo('home')" style="border:none;background:rgba(255,255,255,0.2);color:white;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.9rem;">
+                    <i class="fa-solid fa-chevron-left"></i></button>
+                <span style="color:white;font-size:1.1rem;font-weight:700;">Kundalik</span>
+                <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;color:white;">
+                    <i class="fa-regular fa-calendar"></i></div>
+            </div>
+            <div style="display:flex;background:rgba(255,255,255,0.15);border-radius:12px;padding:4px;backdrop-filter:blur(10px);">
+                <button id="tab-h" onclick="this.style.background='white';this.style.color='#2563eb';document.getElementById('tab-k').style.background='transparent';document.getElementById('tab-k').style.color='rgba(255,255,255,0.8)';"
+                    style="flex:1;border:none;padding:9px;border-radius:9px;font-size:0.85rem;font-weight:600;cursor:pointer;background:white;color:#2563eb;">Haftalik</button>
+                <button id="tab-k" onclick="this.style.background='white';this.style.color='#2563eb';document.getElementById('tab-h').style.background='transparent';document.getElementById('tab-h').style.color='rgba(255,255,255,0.8)';"
+                    style="flex:1;border:none;padding:9px;border-radius:9px;font-size:0.85rem;font-weight:600;cursor:pointer;background:transparent;color:rgba(255,255,255,0.8);">Kunlik</button>
+            </div>
+        </div>
+        <div id="diary-body" style="padding:16px 4px 30px;"></div>`;
+
+    renderContent();
 }
 
 function renderSchedule(container) {
@@ -2156,43 +2782,54 @@ function renderTest(container) {
         'biology': { bg: 'rgba(20,184,166,0.1)', border: 'rgba(20,184,166,0.2)', iconBg: 'linear-gradient(135deg, #14b8a6 0%, #22c55e 100%)', shadow: 'rgba(20,184,166,0.3)' }
     };
 
+    const availableSubjects = (APP_DATA.subjects || []).filter(s => {
+        // Only show subjects that have questions for this student's class (or 'all')
+        return s.questions && s.questions.some(q => !q.targetClass || q.targetClass === 'all' || q.targetClass === APP_DATA.user.class);
+    });
+
     container.innerHTML = `
         <div class="section-title">
             <span>Fanlar bo'yicha testlar</span>
         </div>
         <div class="test-grid" style="grid-template-columns: 1fr; gap: 15px;">
-            ${APP_DATA.subjects.map(s => {
-        const qCount = s.questions.length;
-        const isLocked = qCount === 0;
-        const lastTaken = (APP_DATA.user.completedTests || {})[s.id] || 0;
-        const lastUpdated = s.lastUpdated || 0;
-        const isCompleted = lastTaken > lastUpdated;
-        const theme = subjectColors[s.id] || subjectColors['math'];
+            ${availableSubjects.length > 0 ? availableSubjects.map(s => {
+                const classQuestions = s.questions.filter(q => !q.targetClass || q.targetClass === 'all' || q.targetClass === APP_DATA.user.class);
+                const qCount = classQuestions.length;
+                const isLocked = qCount === 0;
+                const lastTaken = (APP_DATA.user.completedTests || {})[s.id] || 0;
+                const lastUpdated = s.lastUpdated || 0;
+                const isCompleted = lastTaken > lastUpdated;
+                const theme = subjectColors[s.id] || subjectColors['math'];
 
-        return `
-                <div class="glass-card" onclick="${!isLocked && !isCompleted ? `startTest('${s.id}')` : ''}" style="display: flex; align-items: center; gap: 20px; padding: 18px; cursor: ${isLocked || isCompleted ? 'default' : 'pointer'}; background: ${theme.bg}; border: 1px solid ${theme.border}; opacity: ${isLocked ? '0.6' : '1'}; transition: transform 0.2s;">
-                    <div style="width: 55px; height: 55px; border-radius: 18px; background: ${theme.iconBg}; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; box-shadow: 0 8px 20px ${theme.shadow};">
-                        <i class="fa-solid ${s.icon}"></i>
-                    </div>
-                    <div style="flex: 1;">
-                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">${s.name}</h3>
-                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">${qCount} ta savol</span>
-                            ${isCompleted ? '<span style="color: #22c55e; font-size: 0.75rem; font-weight: 600; background: rgba(34,197,94,0.1); padding: 2px 8px; border-radius: 10px;">Yechilgan <i class="fa-solid fa-check"></i></span>' : ''}
-                            ${isLocked ? '<span style="color: var(--text-muted); font-size: 0.75rem; font-weight: 600; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 10px;">Tez kunda...</span>' : ''}
+                return `
+                        <div class="glass-card" onclick="${!isLocked && !isCompleted ? `startTest('${s.id}')` : ''}" style="display: flex; align-items: center; gap: 20px; padding: 18px; cursor: ${isLocked || isCompleted ? 'default' : 'pointer'}; background: ${theme.bg}; border: 1px solid ${theme.border}; opacity: ${isLocked ? '0.6' : '1'}; transition: transform 0.2s;">
+                            <div style="width: 55px; height: 55px; border-radius: 18px; background: ${theme.iconBg}; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; box-shadow: 0 8px 20px ${theme.shadow};">
+                                <i class="fa-solid ${s.icon}"></i>
+                            </div>
+                            <div style="flex: 1;">
+                                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 600;">${s.name}</h3>
+                                <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                                    <span style="font-size: 0.8rem; color: var(--text-muted);">${qCount} ta savol</span>
+                                    ${isCompleted ? '<span style="color: #22c55e; font-size: 0.75rem; font-weight: 600; background: rgba(34,197,94,0.1); padding: 2px 8px; border-radius: 10px;">Yechilgan <i class="fa-solid fa-check"></i></span>' : ''}
+                                    ${isLocked ? '<span style="color: var(--text-muted); font-size: 0.75rem; font-weight: 600; background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 10px;">Tez kunda...</span>' : ''}
+                                </div>
+                            </div>
+                            ${!isLocked && !isCompleted ? `<i class="fa-solid fa-play" style="color: #6366f1; font-size: 1.1rem;"></i>` : ''}
                         </div>
-                    </div>
-                    ${!isLocked && !isCompleted ? `<i class="fa-solid fa-play" style="color: #6366f1; font-size: 1.1rem;"></i>` : ''}
-                </div>
-            `;
-    }).join('')}
+                    `;
+            }).join('') : `<p style="text-align:center; color:var(--text-muted); padding:20px;">Sizning sinfingiz uchun testlar mavjud emas.</p>`}
         </div>
     `;
 }
 
 async function startTest(subjectId) {
     const subject = APP_DATA.subjects.find(s => s.id === subjectId);
-    if (!subject || subject.questions.length === 0) return;
+    if (!subject) return;
+
+    // Filter questions for the student's class
+    const filteredQuestions = subject.questions.filter(q => !q.targetClass || q.targetClass === 'all' || q.targetClass === APP_DATA.user.class);
+    
+    if (filteredQuestions.length === 0) return;
 
     // Check if test was already completed for this version
     const lastTaken = (APP_DATA.user.completedTests || {})[subjectId] || 0;
@@ -2208,7 +2845,7 @@ async function startTest(subjectId) {
         showingResults: false,
         subjectId,
         subjectName: subject.name,
-        questions: [...subject.questions].sort(() => Math.random() - 0.5),
+        questions: [...filteredQuestions].sort(() => Math.random() - 0.5),
         currentIdx: 0,
         score: 0,
         timer: 100,
@@ -2461,7 +3098,7 @@ function renderRanking(container) {
             ${others.map((r, i) => `
                 <div class="glass-card" style="display: flex; align-items: center; gap: 12px; padding: 10px 15px; background: rgba(255,255,255,0.03); margin-bottom: 5px;">
                     <div style="width: 20px; font-weight: 700; color: var(--text-muted); font-size: 0.8rem; text-align: center;">${i + 4}</div>
-                    <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(r.name)}&background=random&color=fff" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
+                    <img src="${r.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name)}&background=random&color=fff`}" style="width: 32px; height: 32px; border-radius: 8px; object-fit: cover;">
                     <div style="flex: 1;">
                         <div style="font-weight: 600; font-size: 0.85rem;">${r.name}</div>
                     </div>
@@ -2490,10 +3127,14 @@ function renderProfile(container) {
     if (isUserAdmin || isTeacher) {
         container.innerHTML = `
             <div class="profile-header fade-in" style="padding: 30px 20px; text-align: center; background: linear-gradient(to bottom, rgba(99,102,241,0.1), transparent); border-radius: 30px; margin-bottom: 20px;">
-                <div style="position: relative; width: 80px; height: 80px; margin: 0 auto 15px;">
-                    <div style="width: 100%; height: 100%; border-radius: 25px; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 2.5rem; box-shadow: 0 8px 20px rgba(99,102,241,0.3);">
-                        <i class="fa-solid ${isUserAdmin ? 'fa-user-shield' : 'fa-chalkboard-user'}"></i>
+                <div style="position: relative; width: 100px; height: 100px; margin: 0 auto 20px;">
+                    <div id="p-avatar-box" style="width: 100%; height: 100%; border-radius: 50%; background: var(--accent-gradient); display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem; box-shadow: 0 10px 25px rgba(99,102,241,0.3); overflow: hidden; border: 4px solid var(--glass-border);">
+                        ${user.avatar ? `<img src="${user.avatar}" style="width:100%; height:100%; object-fit:cover;">` : `<i class="fa-solid ${isUserAdmin ? 'fa-user-shield' : 'fa-chalkboard-user'}"></i>`}
                     </div>
+                    <button onclick="document.getElementById('avatar-input').click()" style="position: absolute; bottom: 0; right: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--primary); border: 2px solid var(--bg-dark); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-camera" style="font-size: 0.8rem;"></i>
+                    </button>
+                    <input type="file" id="avatar-input" hidden accept="image/*" onchange="handleAvatarUpload(this)">
                 </div>
                 <h2 style="margin: 0; font-size: 1.4rem; font-weight: 700;">${user.name}</h2>
                 <p style="margin: 5px 0 0; color: var(--text-muted); font-size: 0.9rem;">${isUserAdmin ? 'Tizim Administratori' : 'O\'qituvchi'}</p>
@@ -2536,13 +3177,19 @@ function renderProfile(container) {
                 <div class="profile-top-bar">
                     <i class="fa-solid fa-chevron-left" style="font-size: 1.1rem; cursor: pointer;" onclick="navigateTo('home')"></i>
                     <span class="profile-title-new">Profil</span>
-                    <div style="width: 24px;"></div> <!-- Spacer for balance -->
+                    <div style="width: 24px;"></div>
                 </div>
             </div>
 
             <div class="profile-card-overlap">
-                <div class="profile-avatar-new">
-                    <i class="fa-solid fa-user"></i>
+                <div style="position: relative; width: 90px; height: 90px; margin: 0 auto 15px;">
+                    <div id="p-avatar-box" style="width: 100%; height: 100%; border-radius: 50%; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: #94a3b8; border: 4px solid white; box-shadow: 0 10px 20px rgba(0,0,0,0.05); overflow: hidden;">
+                        ${user.avatar ? `<img src="${user.avatar}" style="width:100%; height:100%; object-fit:cover;">` : '<i class="fa-solid fa-user"></i>'}
+                    </div>
+                    <button onclick="document.getElementById('avatar-input').click()" style="position: absolute; bottom: 0; right: 0; width: 28px; height: 28px; border-radius: 50%; background: #4f46e5; border: 2px solid white; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-camera" style="font-size: 0.7rem;"></i>
+                    </button>
+                    <input type="file" id="avatar-input" hidden accept="image/*" onchange="handleAvatarUpload(this)">
                 </div>
                 <h2 class="profile-name-new" style="font-size: 1.2rem;">${user.name}</h2>
                 <span class="profile-badge-new">${user.class} sinf</span>
@@ -2590,6 +3237,46 @@ function renderProfile(container) {
             </div>
         </div>
     `;
+}
+
+async function handleAvatarUpload(input) {
+    if (!input.files || !input.files[0]) return;
+    
+    const file = input.files[0];
+    if (file.size > 2 * 1024 * 1024) {
+        showCustomAlert("Rasm hajmi 2MB dan oshmasligi kerak!");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+    formData.append('username', APP_DATA.user.username);
+
+    try {
+        const response = await fetch(`${API_BASE}/upload-avatar`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            APP_DATA.user.avatar = result.avatarUrl;
+            // Update session if remembered
+            const session = localStorage.getItem('userSession');
+            if (session) {
+                const sessionData = JSON.parse(session);
+                sessionData.avatar = result.avatarUrl;
+                localStorage.setItem('userSession', JSON.stringify(sessionData));
+            }
+            showCustomAlert("Rasm muvaffaqiyatli yuklandi!");
+            renderProfile(document.getElementById('app-content'));
+        } else {
+            showCustomAlert("Yuklashda xatolik yuz berdi!");
+        }
+    } catch (error) {
+        console.error("Avatar upload error:", error);
+        showCustomAlert("Server bilan bog'lanishda xato: " + error.message);
+    }
 }
 
 // Theme Logic

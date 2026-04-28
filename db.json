@@ -7,53 +7,28 @@
       "name": "Tizim Adminstratori",
       "class": "Boshqaruv",
       "score": 0,
+      "testsTaken": 0,
+      "avatar": "/uploads/1777405561859.png"
+    },
+    {
+      "name": "shohjahon shahriyev",
+      "class": "Kimyo o'qituvchisi",
+      "user": "shohjahon",
+      "pass": "3232",
+      "role": "teacher",
+      "subject": "kimyo",
+      "score": 0,
       "testsTaken": 0
     },
     {
       "name": "shohjahon shahriyev",
       "class": "11-A",
-      "user": "durdona",
-      "pass": "2025",
+      "user": "shohjahon2",
+      "pass": "3232",
       "role": "student",
       "subject": "",
-      "score": 14,
-      "testsTaken": 2,
-      "completedTests": {
-        "math": 1777281552888
-      }
-    },
-    {
-      "name": "shohjahon shahriyev",
-      "class": "Ona tili o'qituvchisi",
-      "user": "durdona2",
-      "pass": "2025",
-      "role": "teacher",
-      "subject": "ona-tili",
       "score": 0,
       "testsTaken": 0
-    },
-    {
-      "name": "durdona shaxriyeva",
-      "class": "9-A",
-      "user": "durdona3",
-      "pass": "2025",
-      "role": "student",
-      "subject": "",
-      "score": 14,
-      "testsTaken": 0
-    },
-    {
-      "name": "aliyev vali",
-      "class": "7-A",
-      "user": "aliyev",
-      "pass": "vali",
-      "role": "student",
-      "subject": "",
-      "score": 9,
-      "testsTaken": 1,
-      "completedTests": {
-        "math": 1777283623626
-      }
     }
   ],
   "appData": {
@@ -65,7 +40,7 @@
         "tag": "Yangilik",
         "image": "/uploads/1777151523456.jpg",
         "type": "image",
-        "views": 4,
+        "views": 6,
         "date": "26 Aprel, 2026"
       },
       {
@@ -96,20 +71,8 @@
         "id": "math",
         "name": "Matematika",
         "icon": "fa-calculator",
-        "questions": [
-          {
-            "q": "1+3",
-            "options": [
-              "4wr",
-              "g",
-              "g",
-              "g"
-            ],
-            "correct": 1,
-            "image": "/uploads/1777281518031.png"
-          }
-        ],
-        "lastUpdated": 1777281530666
+        "questions": [],
+        "lastUpdated": 1777400626446
       },
       {
         "id": "physics",
@@ -121,7 +84,22 @@
         "id": "kimyo",
         "name": "Kimyo",
         "icon": "fa-flask",
-        "questions": []
+        "questions": [
+          {
+            "q": "hm",
+            "options": [
+              "gn",
+              "gnzd",
+              "dfbnd",
+              "dgzdgn"
+            ],
+            "correct": 1,
+            "targetClass": "11-A",
+            "author": "shohjahon",
+            "timestamp": 1777400520688
+          }
+        ],
+        "lastUpdated": 1777400521020
       },
       {
         "id": "biologiya",
@@ -209,7 +187,7 @@
     "ranking": [
       {
         "name": "shohjahon shahriyev",
-        "score": 11
+        "score": 29
       },
       {
         "name": "durdona shaxriyev",
@@ -223,6 +201,59 @@
       "image": "school_director_1776859699524.png"
     },
     "notifications": [
+      {
+        "id": 1777400565305,
+        "text": "Sizga +1 ball qo'shildi. Umumiy balingiz: 29",
+        "time": "28/04/2026 23:22:45",
+        "read": false,
+        "to": "durdona"
+      },
+      {
+        "id": 1777398937987,
+        "text": "O'qituvchi shohjahon shahriyev sizga Tarix fanidan 3 ball qo'shdi!",
+        "time": "28/04/2026 22:55:37",
+        "read": false,
+        "role": "student",
+        "to": "durdona"
+      },
+      {
+        "id": 1777398911634,
+        "text": "O'qituvchi shohjahon shahriyev sizga Tarix fanidan 5 ball qo'shdi!",
+        "time": "28/04/2026 22:55:11",
+        "read": false,
+        "role": "student",
+        "to": "aliyev"
+      },
+      {
+        "id": 1777398825013,
+        "text": "O'qituvchi shohjahon shahriyev sizga Matematika fanidan 5 ball qo'shdi!",
+        "time": "28/04/2026 22:53:45",
+        "read": false,
+        "role": "student",
+        "to": "durdona"
+      },
+      {
+        "id": 1777398727866,
+        "text": "a",
+        "time": "28/04/2026 22:52",
+        "read": true
+      },
+      {
+        "id": 1777395293365,
+        "text": "O'qituvchi shohjahon shahriyev sizga 5 ball qo'shdi!",
+        "time": "28/04/2026 21:54:53",
+        "read": false,
+        "role": "student",
+        "to": "durdona"
+      },
+      {
+        "id": 1777395249535,
+        "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
+        "time": "28/04/2026 21:54:09",
+        "read": false,
+        "role": "student",
+        "to": "durdona"
+      },
       {
         "id": 1777287719046,
         "text": "O'qituvchi shohjahon shahriyev sizga 1 ball qo'shdi!",
@@ -342,7 +373,7 @@
         "to": "durdona"
       }
     ],
-    "visitors": 2173
+    "visitors": 2180
   },
   "schedules": [
     {
@@ -359,12 +390,22 @@
     {
       "class": "11-A",
       "days": {
-        "dushanba": "kimyo \nmatematika \nadabuyot",
-        "seshanba": "d\nd\nd\nd",
-        "chorshanba": "a\ns\nd\nd",
-        "payshanba": "d\nk\nhh\ntg",
-        "juma": "cyu\nrtiyo\nyjl\nyi",
+        "dushanba": "",
+        "seshanba": "matematika \ntarix",
+        "chorshanba": "",
+        "payshanba": "",
+        "juma": "",
         "shanba": ""
+      }
+    }
+  ],
+  "subscriptions": [
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/eRiP73f18qQ:APA91bEZ2VwkNTTd-IdxDwkQa6R2lx0YKklh0MuyfdoYDAEG6_G_w1gqDp7YkEdUWkrib5fj5F432dRin_M0pPezzJcpDGg7qlxjgaXtxeRBjjj9NvJo10NFNEwnfF1RurfP7InjXd54",
+      "expirationTime": null,
+      "keys": {
+        "p256dh": "BD5BUfAbrXE1BLNZM0_o5zbeQPJY532kV2rniw80lUoF0N6GMJcxTtW7UXwo0R-GUd7eLetQyRFTFg47K-Z0lzg",
+        "auth": "V9VXwuGKRL8HiA9QnItXqQ"
       }
     }
   ]

@@ -24,7 +24,7 @@ webpush.setVapidDetails(
     privateVapidKey
 );
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3005;
 const DB_FILE = path.join(__dirname, 'db.json');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
@@ -74,10 +74,23 @@ app.get('/api/data', (req, res) => {
     res.json({ ...db.appData, users: db.users, schedules: db.schedules || [] });
 });
 
-// ... rest of API routes will be moved here in next step if needed
-
-app.use(express.static(__dirname));
-app.use('/uploads', express.static(UPLOADS_DIR));
+app.post('/api/upload-avatar', upload.single('avatar'), (req, res) => {
+    if (!req.file) return res.status(400).json({ success: false, message: 'Fayl yuklanmadi' });
+    
+    const username = req.body.username;
+    const avatarPath = '/uploads/' + req.file.filename;
+    
+    const db = readDB();
+    const user = db.users.find(u => u.user === username);
+    if (user) {
+        user.avatar = avatarPath;
+        writeDB(db);
+        broadcastUpdate();
+        res.json({ success: true, avatarUrl: avatarPath });
+    } else {
+        res.status(404).json({ success: false, message: 'Foydalanuvchi topilmadi' });
+    }
+});
 
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
@@ -162,6 +175,7 @@ app.post('/api/questions', (req, res) => {
     const db = readDB();
     const subject = db.appData.subjects.find(s => s.id === subjectId);
     if (subject) {
+        // question should have { q, options, correct, targetClass }
         subject.questions.push(question);
         subject.lastUpdated = Date.now(); // Track version
         writeDB(db);
@@ -220,8 +234,8 @@ async function sendPushNotification(payload) {
     const subscriptions = db.subscriptions || [];
     
     const notificationPayload = JSON.stringify({
-        title: 'Yangi xabar',
-        body: payload.text || 'Yangi xabar keldi'
+        title: 'Yangi Bildirishnoma',
+        body: payload.text || 'Maktabdan yangi xabar keldi'
     });
 
     const pushPromises = subscriptions.map(sub => 
@@ -284,7 +298,23 @@ app.post('/api/user/score', (req, res) => {
     const user = db.users.find(u => u.user === username);
     if (user) {
         user.score = (user.score || 0) + scoreDelta;
-        
+
+        // Save grade entry for student diary
+        if (scoreDelta > 0 && subjectId) {
+            const _now = new Date();
+            const _months = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+            const _dateStr = `${_now.getDate()} ${_months[_now.getMonth()]}, ${_now.getFullYear()}`;
+            if (!user.grades) user.grades = [];
+            const _subj = (db.appData.subjects.find(s => s.id === subjectId) || {}).name || subjectId;
+            user.grades.unshift({
+                points: scoreDelta,
+                date: _dateStr,
+                timestamp: Date.now(),
+                source: 'test',
+                label: `${_subj} - Test`
+            });
+        }
+
         console.log(`Updating score for ${username}. Subject: ${subjectId}, Delta: ${scoreDelta}`);
 
         // Track completed test (always, regardless of score)
@@ -364,7 +394,7 @@ app.delete('/api/users/:username', (req, res) => {
 });
 
 app.post('/api/teacher/add-points', (req, res) => {
-    const { teacherUsername, studentUsername, points } = req.body;
+    const { teacherUsername, studentUsername, points, subjectId } = req.body;
     const db = readDB();
 
     const teacher = db.users.find(u => u.user === teacherUsername);
@@ -384,11 +414,28 @@ app.post('/api/teacher/add-points', (req, res) => {
     }
 
     student.score = (student.score || 0) + pointsNum;
-    
+
+    // Save grade entry for student diary
+    const _gNow = new Date();
+    const _gMonths = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+    const _gDate = `${_gNow.getDate()} ${_gMonths[_gNow.getMonth()]}, ${_gNow.getFullYear()}`;
+    if (!student.grades) student.grades = [];
+    const _subjObj = subjectId ? db.appData.subjects.find(s => s.id === subjectId) : null;
+    const _subjName = _subjObj ? _subjObj.name : '';
+    student.grades.unshift({
+        points: pointsNum,
+        date: _gDate,
+        timestamp: Date.now(),
+        source: 'teacher',
+        subjectId: subjectId || '',
+        subjectName: _subjName,
+        label: _subjName ? `${_subjName}` : `O'qituvchi ${teacher.name} tomonidan`
+    });
+
     // Create a notification for the student
     const notif = {
         id: Date.now(),
-        text: `O'qituvchi ${teacher.name} sizga ${pointsNum} ball qo'shdi!`,
+        text: `O'qituvchi ${teacher.name} sizga ${_subjName ? _subjName + ' fanidan ' : ''}${pointsNum} ball qo'shdi!`,
         time: new Date().toLocaleString('uz-UZ').replace(',', ''),
         read: false,
         role: 'student',
@@ -405,8 +452,33 @@ app.post('/api/teacher/add-points', (req, res) => {
     res.json({ success: true, newScore: student.score });
 });
 
+app.post('/api/admin/reset-score/:username', (req, res) => {
+    const db = readDB();
+    const user = db.users.find(u => u.user === req.params.username);
+    if (user) {
+        user.score = 0;
+        writeDB(db);
+        broadcastUpdate();
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ success: false, message: "Foydalanuvchi topilmadi" });
+    }
+});
 
+// --- Static File Serving (Always at the end) ---
+app.use('/uploads', express.static(UPLOADS_DIR));
+app.use(express.static(__dirname));
 
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running at http://0.0.0.0:${PORT}`);
+// Fallback for SPA (optional but good)
+app.use((req, res, next) => {
+    // If it's an API request that wasn't caught, return 404 JSON
+    if (req.path.startsWith('/api')) {
+        return res.status(404).json({ success: false, message: "API route not found" });
+    }
+    // Otherwise serve index.html
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });

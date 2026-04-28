@@ -13,13 +13,17 @@ self.addEventListener('push', function(event) {
         body: data.body,
         icon: '/logo.png',
         badge: '/logo.png',
-        vibrate: [100, 50, 100],
+        vibrate: [200, 100, 200, 100, 200],
+        sound: '/notif-sound.mp3',
+        tag: 'maktab-notification',
+        renotify: true,
+        requireInteraction: true,
         data: {
             dateOfArrival: Date.now(),
             primaryKey: '1'
         },
         actions: [
-            { action: 'explore', title: 'Ko\'rish' },
+            { action: 'explore', title: "Ko'rish" },
             { action: 'close', title: 'Yopish' }
         ]
     };
@@ -31,7 +35,19 @@ self.addEventListener('push', function(event) {
 
 self.addEventListener('notificationclick', function(event) {
     event.notification.close();
+    
+    if (event.action === 'close') return;
+    
     event.waitUntil(
-        clients.openWindow('/')
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+            // If app is already open, focus it
+            for (let client of clientList) {
+                if (client.url.includes(self.location.origin) && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            // Otherwise open new window
+            return clients.openWindow('/');
+        })
     );
 });

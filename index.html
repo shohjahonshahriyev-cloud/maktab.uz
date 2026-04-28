@@ -182,6 +182,25 @@
             </div>
         </div>
     </div>
+
+    <!-- Notification Prompt Modal (Specific for iOS/PWA) -->
+    <div id="notif-prompt" class="modal-overlay hidden">
+        <div class="modal-content glass-card" style="text-align: center; padding: 30px; max-width: 320px;">
+            <div style="font-size: 3rem; margin-bottom: 20px;">🔔</div>
+            <h3 style="margin-bottom: 15px;">Bildirishnomalarni yoqing</h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 25px;">
+                Yangi baholar va maktab yangiliklaridan birinchilardan bo'lib xabardor bo'lish uchun bildirishnomalarga ruxsat bering. 
+                <br><br>
+                <small>iPhone'da ovozli xabarlar ishlashi uchun bu juda muhim.</small>
+            </p>
+            <button onclick="enableNotificationsUI()" class="buy-btn" style="width: 100%; padding: 15px; font-size: 1rem; border-radius: 12px;">
+                Ruxsat berish va Yoqish
+            </button>
+            <button onclick="closeNotifPrompt()" style="background: none; border: none; color: var(--text-muted); margin-top: 15px; cursor: pointer; font-size: 0.9rem;">
+                Keyinroq
+            </button>
+        </div>
+    </div>
 </body>
 
 </html>
