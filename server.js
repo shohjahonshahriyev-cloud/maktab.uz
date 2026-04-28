@@ -471,6 +471,10 @@ app.post('/api/admin/clear-students', (req, res) => {
     const before = db.users.length;
     db.users = db.users.filter(u => u.role === 'admin' || u.role === 'teacher');
     const removed = before - db.users.length;
+    // Also wipe ranking list
+    if (db.appData && db.appData.ranking) {
+        db.appData.ranking = [];
+    }
     writeDB(db);
     broadcastUpdate();
     res.json({ success: true, removed });

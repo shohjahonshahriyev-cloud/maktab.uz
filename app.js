@@ -573,7 +573,7 @@ async function fetchData() {
         if (fetchedUsers && Array.isArray(fetchedUsers)) {
             APP_DATA.ranking = fetchedUsers
                 .filter(u => u.role === 'student')
-                .map(u => ({ name: u.name, score: u.score || 0 }))
+                .map(u => ({ name: u.name, score: u.score || 0, avatar: u.avatar || null, username: u.user }))
                 .sort((a, b) => b.score - a.score)
                 .slice(0, 10);
         }
@@ -1699,10 +1699,11 @@ function renderNotifications(container) {
     console.log("Current user for filtering:", currentUser);
     
     let filtered = APP_DATA.notifications.filter(n => {
-        const isAdminNotif = !n.to;
+        const isAdminNotif = !n.to && (!n.role || n.role !== 'student');
         const isPrivateNotif = n.to === currentUser;
-        
+        // Admin broadcast notifications visible to everyone in 'admin' tab
         if (NOTIF_STATE.activeTab === 'admin' && isAdminNotif) return true;
+        // Private notifications (ball, test results) in 'private' tab
         if (NOTIF_STATE.activeTab === 'private' && isPrivateNotif) return true;
         
         return false;
