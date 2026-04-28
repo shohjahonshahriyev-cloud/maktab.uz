@@ -465,6 +465,17 @@ app.post('/api/admin/reset-score/:username', (req, res) => {
     }
 });
 
+// Admin: delete all student accounts
+app.post('/api/admin/clear-students', (req, res) => {
+    const db = readDB();
+    const before = db.users.length;
+    db.users = db.users.filter(u => u.role === 'admin' || u.role === 'teacher');
+    const removed = before - db.users.length;
+    writeDB(db);
+    broadcastUpdate();
+    res.json({ success: true, removed });
+});
+
 // --- Static File Serving (Always at the end) ---
 app.use('/uploads', express.static(UPLOADS_DIR));
 app.use(express.static(__dirname));

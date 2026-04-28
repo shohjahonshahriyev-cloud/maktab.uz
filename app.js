@@ -1219,7 +1219,48 @@ function renderAdmin(container) {
                 <button onclick="navigateTo('members')" style="background: none; border: none; color: var(--primary); font-size: 0.8rem; cursor: pointer;">Hammasini ko'rish <i class="fa-solid fa-arrow-right"></i></button>
             </div>
         </div>
+
+        <!-- Danger Zone -->
+        <div class="section-title" style="margin-top: 30px;">
+            <span style="color: #ef4444;">⚠️ Xavfli zona</span>
+        </div>
+        <div class="glass-card" style="border: 1px solid rgba(239,68,68,0.3); background: rgba(239,68,68,0.05); padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div style="width: 50px; height: 50px; border-radius: 15px; background: rgba(239,68,68,0.2); display: flex; align-items: center; justify-content: center; color: #ef4444; font-size: 1.4rem; flex-shrink: 0;">
+                    <i class="fa-solid fa-user-slash"></i>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 700; font-size: 0.95rem; margin-bottom: 4px;">Barcha o'quvchilarni o'chirish</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Faqat admin va o'qituvchilar qoladi. Bu amalni bekor qilib bo'lmaydi!</div>
+                </div>
+                <button onclick="clearAllStudents()" style="background: rgba(239,68,68,0.2); border: 1px solid #ef4444; color: #ef4444; padding: 10px 16px; border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 0.8rem; flex-shrink: 0;">
+                    O'chirish
+                </button>
+            </div>
+        </div>
     `;
+}
+
+async function clearAllStudents() {
+    const confirmed = await showCustomConfirm(
+        "⚠️ Barcha o'quvchilarni o'chirish",
+        "Haqiqatan ham barcha test o'quvchilarni o'chirmoqchimisiz? Bu amalni bekor qilib bo'lmaydi!"
+    );
+    if (!confirmed) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/admin/clear-students`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            await fetchData();
+            renderAdmin(document.getElementById('app-content'));
+            showCustomAlert(`✅ ${data.removed} ta o'quvchi o'chirildi!`);
+        } else {
+            showCustomAlert("Xatolik yuz berdi.");
+        }
+    } catch (err) {
+        showCustomAlert("Server bilan bog'lanishda xato.");
+    }
 }
 
 function renderMembers(container) {
