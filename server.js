@@ -74,6 +74,24 @@ app.get('/api/data', (req, res) => {
     res.json({ ...db.appData, users: db.users, schedules: db.schedules || [] });
 });
 
+app.post('/api/update-password', (req, res) => {
+    const { username, oldPassword, newPassword } = req.body;
+    const db = readDB();
+    const user = db.users.find(u => u.user === username);
+    
+    if (!user) {
+        return res.status(404).json({ success: false, message: "Foydalanuvchi topilmadi!" });
+    }
+    
+    if (user.pass !== oldPassword) {
+        return res.status(401).json({ success: false, message: "Eski parol noto'g'ri!" });
+    }
+    
+    user.pass = newPassword;
+    writeDB(db);
+    res.json({ success: true, message: "Parol muvaffaqiyatli o'zgartirildi!" });
+});
+
 app.post('/api/upload-avatar', upload.single('avatar'), (req, res) => {
     if (!req.file) return res.status(400).json({ success: false, message: 'Fayl yuklanmadi' });
     

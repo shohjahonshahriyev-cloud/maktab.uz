@@ -36,9 +36,24 @@
 
     <!-- Loading Screen -->
     <div id="loading-screen" class="loading-screen">
-        <div class="loader">
-            <div class="loader-text">Yuklanmoqda...</div>
-            <div class="loader-circle"></div>
+        <div class="loader-container">
+            <div class="loader-logo">
+                <img src="logo_new.png" alt="24-Maktab">
+            </div>
+            <div class="loader-progress-box">
+                <svg class="progress-ring" width="120" height="120">
+                    <circle class="progress-ring__circle-bg" stroke="#f1f5f9" stroke-width="6" fill="transparent" r="54" cx="60" cy="60"/>
+                    <circle class="progress-ring__circle" stroke="url(#loader-gradient)" stroke-width="6" stroke-linecap="round" fill="transparent" r="54" cx="60" cy="60"/>
+                    <defs>
+                        <linearGradient id="loader-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#6366f1" />
+                            <stop offset="100%" stop-color="#a855f7" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div class="loader-percentage"><span id="loading-percent">0</span>%</div>
+            </div>
+            <div class="loader-status">Tizim yuklanmoqda...</div>
         </div>
     </div>
 

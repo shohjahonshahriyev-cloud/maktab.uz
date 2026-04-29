@@ -4,6 +4,24 @@ const API_BASE = (window.location.hostname === 'localhost' || window.location.ho
     : '/api';
 const socket = io(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3005' : undefined);
 
+// PWA Install Logic
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    const installBtn = document.getElementById('install-pwa-btn');
+    if (installBtn) installBtn.classList.remove('hidden');
+});
+
+async function installPWA() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    const installBtn = document.getElementById('install-pwa-btn');
+    if (installBtn) installBtn.classList.add('hidden');
+}
+
 let notifCount = 0;
 const notifSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
@@ -408,7 +426,8 @@ async function handleLoginV2() {
                 username: foundUser.user,
                 role: foundUser.role,
                 subject: foundUser.subject || '',
-                completedTests: foundUser.completedTests || {}
+                completedTests: foundUser.completedTests || {},
+                avatar: foundUser.avatar || ''
             };
 
             // Save to session instead of localStorage if "Remember me" is not checked?
@@ -565,6 +584,7 @@ async function fetchData() {
                 APP_DATA.user.score = currentServerUser.score || 0;
                 APP_DATA.user.testsTaken = currentServerUser.testsTaken || 0;
                 APP_DATA.user.completedTests = currentServerUser.completedTests || {};
+                APP_DATA.user.avatar = currentServerUser.avatar || '';
                 updateHeaderScore();
             }
         }
@@ -714,6 +734,57 @@ function renderSection() {
     }
 }
 
+function getTeacherAnalyticsHTML() {
+    const teacherSubjectId = APP_DATA.user.subject;
+    const subject = APP_DATA.subjects.find(s => s.id === teacherSubjectId);
+    if (!subject) return "";
+
+    const questionsCount = subject.questions ? subject.questions.length : 0;
+    const students = APP_DATA.users.filter(u => u.role === 'student');
+    const avgScore = students.length > 0 ? (students.reduce((acc, u) => acc + (u.score || 0), 0) / students.length).toFixed(1) : 0;
+    
+    const topStudents = [...students].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5);
+
+    return `
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;">
+            <div class="glass-card" style="padding: 15px; text-align: center; border-left: 4px solid var(--primary); background: rgba(99,102,241,0.05);">
+                <i class="fa-solid fa-file-circle-question" style="font-size: 1.2rem; color: var(--primary); margin-bottom: 8px; display: block;"></i>
+                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Jami savollar</span>
+                <span style="font-size: 1.2rem; font-weight: 800; color: white;">${questionsCount} ta</span>
+            </div>
+            <div class="glass-card" style="padding: 15px; text-align: center; border-left: 4px solid #22c55e; background: rgba(34,197,94,0.05);">
+                <i class="fa-solid fa-chart-line" style="font-size: 1.2rem; color: #22c55e; margin-bottom: 8px; display: block;"></i>
+                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">O'rtacha ball</span>
+                <span style="font-size: 1.2rem; font-weight: 800; color: white;">${avgScore}</span>
+            </div>
+        </div>
+
+        <div class="glass-card" style="padding: 15px; margin-bottom: 20px;">
+            <h3 style="font-size: 0.95rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-trophy" style="color: #ffd700;"></i> Eng faol o'quvchilar
+            </h3>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${topStudents.length > 0 ? topStudents.map((u, idx) => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="width: 24px; height: 24px; background: ${idx === 0 ? '#ffd700' : idx === 1 ? '#c0c0c0' : idx === 2 ? '#cd7f32' : 'rgba(255,255,255,0.1)'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; color: ${idx < 3 ? '#000' : '#fff'}">${idx + 1}</span>
+                            <span style="font-size: 0.85rem; font-weight: 500;">${u.name}</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="display: block; font-weight: 800; color: var(--primary); font-size: 0.9rem;">${u.score || 0}</span>
+                            <span style="font-size: 0.65rem; color: var(--text-muted);">${u.class}</span>
+                        </div>
+                    </div>
+                `).join('') : '<p style="text-align:center; color:var(--text-muted); font-size:0.8rem;">Ma\'lumotlar mavjud emas</p>'}
+            </div>
+        </div>
+        
+        <button class="buy-btn" onclick="renderAnalyticsView()" style="width: 100%; font-size: 0.85rem; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);">
+            <i class="fa-solid fa-chart-pie"></i> Batafsil grafiklar
+        </button>
+    `;
+}
+
 function renderTeacher(container) {
     const teacherSubjectId = APP_DATA.user.subject;
     const subject = APP_DATA.subjects.find(s => s.id === teacherSubjectId);
@@ -826,12 +897,7 @@ function renderTeacher(container) {
 
                 <!-- Analytics Section (Hidden) -->
                 <div id="section-analytics" class="fade-in hidden">
-                    <div class="glass-card" style="padding: 15px; text-align: center;">
-                        <i class="fa-solid fa-chart-pie" style="font-size: 2.5rem; color: var(--secondary); margin-bottom: 10px; opacity: 0.5;"></i>
-                        <h3 style="font-size: 1rem;">Tez kunda...</h3>
-                        <p style="font-size: 0.8rem; color: var(--text-muted);">Sinflar bo'yicha batafsil statistika va grafiklar kiritilmoqda.</p>
-                        <button class="buy-btn" onclick="renderAnalyticsView()" style="margin-top: 10px; font-size: 0.8rem;">Eski variantni ko'rish</button>
-                    </div>
+                    ${getTeacherAnalyticsHTML()}
                 </div>
             </div>
         </div>
@@ -2126,9 +2192,10 @@ window.switchTestTab = (tab) => {
 };
 
 window.selectCorrectVariant = (val) => {
-    document.getElementById('t-q-correct').value = val;
-    document.querySelectorAll('.variant-select-btn').forEach((btn, i) => {
-        if (i === val) btn.classList.add('active');
+    document.querySelectorAll('#t-q-correct').forEach(el => el.value = val);
+    document.querySelectorAll('.variant-select-btn').forEach((btn) => {
+        const btnVal = parseInt(btn.id.replace('variant-btn-', ''));
+        if (btnVal === val) btn.classList.add('active');
         else btn.classList.remove('active');
     });
 };
@@ -2153,34 +2220,7 @@ async function deleteTeacherQuestion(subjectId, index) {
     }
 }
 
-async function addNewUser() {
-    const fullName = document.getElementById('new-user-fullname').value;
-    const userClass = document.getElementById('new-user-class').value;
-    const user = document.getElementById('new-user-login').value;
-    const pass = document.getElementById('new-user-pass').value;
-    const role = document.getElementById('new-user-role').value;
 
-    if (fullName && user && pass) {
-        const newUser = {
-            user,
-            pass,
-            role,
-            name: fullName,
-            class: userClass || (role === 'teacher' ? "O'qituvchi" : "Admin")
-        };
-
-        await fetch(`${API_BASE}/users`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newUser)
-        });
-
-        alert(`${fullName} muvaffaqiyatli yaratildi!`);
-        renderAdmin(document.getElementById('app-content'));
-    } else {
-        alert("Barcha maydonlarni to'ldiring!");
-    }
-}
 
 async function addNewNews() {
     const title = document.getElementById('new-news-title').value;
@@ -3201,6 +3241,18 @@ function renderProfile(container) {
             ` : ''}
 
             <div style="padding: 0 10px;">
+                <div class="glass-card" style="padding: 15px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                    <h3 style="font-size: 0.9rem; margin-bottom: 10px;"><i class="fa-solid fa-lock" style="color: var(--primary);"></i> Parolni o'zgartirish</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <input type="password" id="p-old-pass" placeholder="Eski parol" style="background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: white; padding: 10px; border-radius: 10px; font-size: 0.85rem;">
+                        <input type="password" id="p-new-pass" placeholder="Yangi parol" style="background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: white; padding: 10px; border-radius: 10px; font-size: 0.85rem;">
+                        <button class="buy-btn" onclick="changePassword()" style="font-size: 0.8rem; padding: 10px;">O'zgartirish</button>
+                    </div>
+                </div>
+                
+                <button id="install-pwa-btn" class="hidden" onclick="installPWA()" style="width: 100%; background: #22c55e; color: white; border: none; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-download"></i> Ilovani o'rnatish
+                </button>
                 <button onclick="initPushNotifications(true)" style="width: 100%; background: var(--accent-gradient); color: white; border: none; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 10px;">
                     <i class="fa-solid fa-bell"></i> Bildirishnomalarni yoqish
                 </button>
@@ -3269,6 +3321,18 @@ function renderProfile(container) {
             </div>
 
             <div style="padding: 15px 25px;">
+                <div class="glass-card" style="padding: 15px; margin-bottom: 15px; border: 1px solid #f1f5f9; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                    <h3 style="font-size: 0.9rem; margin-bottom: 12px; color: #1e293b;"><i class="fa-solid fa-lock" style="color: #4f46e5;"></i> Parolni o'zgartirish</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <input type="password" id="p-old-pass" placeholder="Eski parol" style="background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b; padding: 12px; border-radius: 12px; font-size: 0.85rem; outline: none;">
+                        <input type="password" id="p-new-pass" placeholder="Yangi parol" style="background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b; padding: 12px; border-radius: 12px; font-size: 0.85rem; outline: none;">
+                        <button onclick="changePassword()" style="background: #4f46e5; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;">O'zgartirish</button>
+                    </div>
+                </div>
+
+                <button id="install-pwa-btn" class="hidden" onclick="installPWA()" style="width: 100%; background: #22c55e; color: white; border: none; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-download"></i> Ilovani o'rnatish
+                </button>
                 <button onclick="initPushNotifications(true)" style="width: 100%; background: var(--accent-gradient); color: white; border: none; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 10px;">
                     <i class="fa-solid fa-bell"></i> Bildirishnomalarni yoqish
                 </button>
@@ -3279,6 +3343,56 @@ function renderProfile(container) {
             </div>
         </div>
     `;
+}
+
+async function changePassword() {
+    const oldPassword = document.getElementById('p-old-pass').value;
+    const newPassword = document.getElementById('p-new-pass').value;
+    
+    if (!oldPassword || !newPassword) {
+        showCustomAlert("Iltimos, ikkala parolni ham kiriting!");
+        return;
+    }
+    
+    if (newPassword.length < 4) {
+        showCustomAlert("Yangi parol kamida 4 ta belgidan iborat bo'lishi kerak!");
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/update-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: APP_DATA.user.username,
+                oldPassword,
+                newPassword
+            })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showCustomAlert(result.message);
+            document.getElementById('p-old-pass').value = '';
+            document.getElementById('p-new-pass').value = '';
+            
+            // Update local user data
+            APP_DATA.user.pass = newPassword;
+            
+            // Update session
+            const session = localStorage.getItem('userSession');
+            if (session) {
+                const sessionData = JSON.parse(session);
+                sessionData.pass = newPassword;
+                localStorage.setItem('userSession', JSON.stringify(sessionData));
+            }
+        } else {
+            showCustomAlert(result.message || "Xatolik yuz berdi!");
+        }
+    } catch (error) {
+        console.error("Password change error:", error);
+        showCustomAlert("Server bilan bog'lanishda xato!");
+    }
 }
 
 async function handleAvatarUpload(input) {
@@ -3379,7 +3493,9 @@ window.onload = async () => {
                 testsTaken: userToUse.testsTaken || 0,
                 username: userToUse.user || userToUse.username,
                 role: userToUse.role,
-                completedTests: userToUse.completedTests || {}
+                completedTests: userToUse.completedTests || {},
+                avatar: userToUse.avatar || '',
+                subject: userToUse.subject || ''
             };
 
             // Show app, hide screens
@@ -3419,7 +3535,50 @@ window.onload = async () => {
         navbars.forEach(nav => nav.classList.add('hidden'));
     }
 
-    if (loadingScreen) loadingScreen.classList.add('hidden');
+    // Loading Screen Progress Logic
+    const startLoading = () => {
+        return new Promise((resolve) => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const percentText = document.getElementById('loading-percent');
+            const progressCircle = document.querySelector('.progress-ring__circle');
+            if (!loadingScreen || !percentText || !progressCircle) {
+                resolve();
+                return;
+            }
+
+            const circumference = 2 * Math.PI * 54;
+            let progress = 0;
+            
+            const interval = setInterval(() => {
+                // Slower at the end
+                const inc = progress > 80 ? 1 : Math.floor(Math.random() * 4) + 2;
+                progress += inc;
+                
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    
+                    percentText.innerText = progress;
+                    progressCircle.style.strokeDashoffset = 0;
+                    
+                    setTimeout(() => {
+                        loadingScreen.style.opacity = '0';
+                        setTimeout(() => {
+                            loadingScreen.style.display = 'none';
+                            resolve();
+                        }, 800);
+                    }, 500);
+                } else {
+                    percentText.innerText = progress;
+                    const offset = circumference - (progress / 100) * circumference;
+                    progressCircle.style.strokeDashoffset = offset;
+                }
+            }, 30);
+        });
+    };
+
+    // Wait for simulated progress
+    await startLoading();
 
     // Increment visitor count only once per browser session
     if (!sessionStorage.getItem('site_visited')) {
