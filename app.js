@@ -1068,14 +1068,6 @@ async function renderTeacherView(view, param) {
                 </div>
             </div>
             
-            <style>
-                .variant-select-btn.active {
-                    background: var(--primary) !important;
-                    border-color: var(--primary) !important;
-                    box-shadow: 0 4px 12px rgba(99,102,241,0.3);
-                }
-                .input-group-v2 label { font-weight: 600; letter-spacing: 0.2px; }
-            </style>
         `;
     } else if (view === 'class-students') {
         container.innerHTML = `
@@ -2145,16 +2137,11 @@ window.switchMainTeacherTab = (tab) => {
 
 window.switchTestSubTab = (tab) => {
     const addBtn = document.getElementById('t-subtab-add');
-    const listBtn = document.getElementById('tab-list'); // Wait, I named it t-subtab-list in HTML
-    const addBtnActual = document.getElementById('t-subtab-add');
-    const listBtnActual = document.getElementById('t-subtab-list');
+    const listBtn = document.getElementById('t-subtab-list');
     const formArea = document.getElementById('t-form-area');
     const listArea = document.getElementById('t-list-area');
 
     if (tab === 'add') {
-        addBtnActual.style.background = 'var(--primary)';
-        addBtnActual.style.color = 'white';
-        listBtnActual.style.background = 'transparent';
         listBtnActual.style.color = 'var(--text-muted)';
         formArea.classList.remove('hidden');
         listArea.classList.add('hidden');

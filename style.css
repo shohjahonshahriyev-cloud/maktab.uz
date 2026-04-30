@@ -1862,3 +1862,16 @@ main {
     transform: scale(0.98);
     background: #1d4ed8;
 }
+
+/* Teacher Test Manager Styles */
+.variant-select-btn.active {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    color: white !important;
+}
+
+.input-group-v2 label { 
+    font-weight: 600; 
+    letter-spacing: 0.2px; 
+}
