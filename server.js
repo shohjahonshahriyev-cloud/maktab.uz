@@ -20,6 +20,12 @@ const publicVapidKey = process.env.VAPID_PUBLIC_KEY;
 const privateVapidKey = process.env.VAPID_PRIVATE_KEY;
 const JWT_SECRET = process.env.JWT_SECRET;
 
+if (!JWT_SECRET) {
+    console.warn("DIQQAT: JWT_SECRET topilmadi! Tizimga kirishda xatolik bo'lishi mumkin.");
+} else {
+    console.log("JWT_SECRET muvaffaqiyatli yuklandi.");
+}
+
 webpush.setVapidDetails('mailto:shohjahon@example.com', publicVapidKey, privateVapidKey);
 
 const PORT = process.env.PORT || 3005;
