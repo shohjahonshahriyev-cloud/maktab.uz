@@ -2,7 +2,7 @@
   "users": [
     {
       "user": "admin",
-      "pass": "2024",
+      "pass": "$2b$10$sz7M.AO1dAHwkLDmCZYt/uQ0yJMI.1OQMFblMc7PBkSjbU3ALQW7G",
       "role": "admin",
       "name": "Tizim Adminstratori",
       "class": "Boshqaruv",
@@ -14,7 +14,7 @@
       "name": "shohjahon shahriyev",
       "class": "Kimyo o'qituvchisi",
       "user": "shohjahon",
-      "pass": "3232",
+      "pass": "$2b$10$2j1tCAoux0JivmGFuVV0..kaaPxqfOFhF7E2gQgJurDi9WyK74pl.",
       "role": "teacher",
       "subject": "kimyo",
       "score": 0,
@@ -24,34 +24,53 @@
       "name": "shohjahon shahriyev",
       "class": "11-A",
       "user": "shohjahon2",
-      "pass": "3232",
+      "pass": "$2b$10$wEGnZN.GAn1uBpykGcMxXu8V1NKoRYd079290uh1tT92RLSTTGPZa",
       "role": "student",
       "subject": "",
-      "score": 0,
-      "testsTaken": 0
+      "score": 3,
+      "testsTaken": 2,
+      "avatar": "/uploads/1777798675846.png",
+      "grades": [
+        {
+          "points": 1,
+          "date": "3 May, 2026",
+          "timestamp": 1777802189377,
+          "source": "test",
+          "label": "Kimyo - Test"
+        },
+        {
+          "points": 5,
+          "date": "3 May, 2026",
+          "timestamp": 1777799882573,
+          "source": "teacher",
+          "subjectId": "musiqa",
+          "subjectName": "Musiqa",
+          "label": "Musiqa"
+        },
+        {
+          "points": 1,
+          "date": "3 May, 2026",
+          "timestamp": 1777798693603,
+          "source": "test",
+          "label": "Kimyo - Test"
+        }
+      ],
+      "completedTests": {
+        "kimyo": 1777802189377
+      }
     }
   ],
   "appData": {
     "news": [
       {
-        "id": 1777151524458,
-        "title": "Sovg'alar seni kutmoqda ",
-        "text": "🎁 SOVG‘ALAR SENI KUTMOQDA! 🎁\n\nFaol bo‘l, bilim ol va sovg‘a yutib ol!\n\nBizning platformamizda eng faol va bilimli o‘quvchilar uchun maxsus sovg‘alar tayyorlangan:\n\n🎧 AirPods  \n⌚ Smart Watch  \n📚 Kitob to‘plami  \n💸 Pul mukofoti\n\nHar bir test, har bir natija va har bir harakat seni sovg‘aga yanada yaqinlashtiradi!\n\n🏆 Reytingda yuqoriga ko‘taril  \n📈 Bilimingni oshir  \n🎯 Sovrinli o‘rinlarni egalla\n\nBugunoq platformaga qo‘shil va o‘z imkoniyatingni ko‘rsat!\n\n🚀 G‘oliblar safida aynan sen bo‘lishing mumkin!",
+        "id": 1777799838524,
+        "title": " ",
+        "text": " ",
         "tag": "Yangilik",
-        "image": "/uploads/1777151523456.jpg",
+        "image": "/uploads/1777799837807.png",
         "type": "image",
-        "views": 6,
-        "date": "26 Aprel, 2026"
-      },
-      {
-        "id": 1777146133805,
-        "title": "🎉 24-MAKTAB RASMIY SAYTI ISHGA TUSHDI!",
-        "text": "Endilikda 24-maktabimiz yanada zamonaviy bosqichga chiqdi! 📱💻\nMaktabimizning rasmiy sayti ishga tushirildi va barchaga qulay imkoniyatlar yaratildi.\n\n🔹 O‘quvchilar uchun foydali ma’lumotlar\n🔹 O‘qituvchilar va dars jadvali\n🔹 Yangiliklar va e’lonlar\n🔹 Iqtidorli o‘quvchilar bo‘limi\n🔹 Online aloqa va murojaatlar\n\nSayt orqali siz maktab hayotidagi barcha yangiliklardan tez va oson xabardor bo‘lishingiz mumkin.\n\n🌐 Sayt manzili: two4-maktab.onrender.com\n\n24-maktab — bilim va rivojlanish sari! 🚀",
-        "tag": "Yangilik",
-        "image": "/uploads/1777146133347.png",
-        "type": "image",
-        "views": 7,
-        "date": "26 Aprel, 2026"
+        "views": 2,
+        "date": "3 May, 2026"
       }
     ],
     "subjects": [
@@ -86,20 +105,33 @@
         "icon": "fa-flask",
         "questions": [
           {
-            "q": "hm",
+            "q": "sxgshhrd",
+            "options": [
+              "hrdhj",
+              "drhjdj",
+              "djdjdd",
+              "j"
+            ],
+            "correct": 2,
+            "targetClass": "11-A",
+            "author": "shohjahon",
+            "timestamp": 1777799776287
+          },
+          {
+            "q": "\\\n",
             "options": [
               "gn",
               "gnzd",
-              "dfbnd",
+              "\\",
               "dgzdgn"
             ],
             "correct": 1,
-            "targetClass": "11-A",
+            "targetClass": "all",
             "author": "shohjahon",
-            "timestamp": 1777400520688
+            "timestamp": 1777799796055
           }
         ],
-        "lastUpdated": 1777400521020
+        "lastUpdated": 1777799796072
       },
       {
         "id": "biologiya",
@@ -170,6 +202,13 @@
     ],
     "gifts": [
       {
+        "id": 1777802153822,
+        "name": "Air Pods",
+        "points": 1,
+        "icon": "fa-gift",
+        "image": null
+      },
+      {
         "id": 1777152877374,
         "name": "Air Pods",
         "points": 300,
@@ -184,7 +223,12 @@
         "image": "/uploads/1777132270188.webp"
       }
     ],
-    "ranking": [],
+    "ranking": [
+      {
+        "name": "shohjahon shahriyev",
+        "score": 3
+      }
+    ],
     "director": {
       "name": "Akbar Tohirov",
       "role": "Maktab maslahatchisi",
@@ -193,13 +237,57 @@
     },
     "notifications": [
       {
-        "id": 1777398727866,
-        "text": "a",
-        "time": "28/04/2026 22:52",
-        "read": true
+        "id": 1777803564122,
+        "text": "Sovg'a xarid qilindi: -1 ball. Umumiy balingiz: 3",
+        "time": "03/05/2026 15:19:24",
+        "read": false,
+        "to": "shohjahon2"
+      },
+      {
+        "id": 1777802499724,
+        "text": "Sizga -1 ball qo'shildi. Umumiy balingiz: 4",
+        "time": "03/05/2026 15:01:39",
+        "read": false,
+        "to": "shohjahon2"
+      },
+      {
+        "id": 1777802466669,
+        "text": "Sizga -1 ball qo'shildi. Umumiy balingiz: 5",
+        "time": "03/05/2026 15:01:06",
+        "read": false,
+        "to": "shohjahon2"
+      },
+      {
+        "id": 1777802347392,
+        "text": "Sizga -1 ball qo'shildi. Umumiy balingiz: 6",
+        "time": "03/05/2026 14:59:07",
+        "read": false,
+        "to": "shohjahon2"
+      },
+      {
+        "id": 1777802189378,
+        "text": "Sizga +1 ball qo'shildi. Umumiy balingiz: 7",
+        "time": "03/05/2026 14:56:29",
+        "read": false,
+        "to": "shohjahon2"
+      },
+      {
+        "id": 1777799882573,
+        "text": "O'qituvchi shohjahon shahriyev sizga Musiqa fanidan 5 ball qo'shdi!",
+        "time": "03/05/2026 14:18:02",
+        "read": false,
+        "role": "student",
+        "to": "shohjahon2"
+      },
+      {
+        "id": 1777798693603,
+        "text": "Sizga +1 ball qo'shildi. Umumiy balingiz: 1",
+        "time": "03/05/2026 13:58:13",
+        "read": false,
+        "to": "shohjahon2"
       }
     ],
-    "visitors": 2184
+    "visitors": 2186
   },
   "schedules": [
     {

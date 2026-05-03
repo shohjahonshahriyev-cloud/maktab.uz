@@ -1,8 +1,29 @@
 // API Configuration
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
-    ? 'http://localhost:3005/api' 
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3005/api'
     : '/api';
 const socket = io(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3005' : undefined);
+
+const originalFetch = window.fetch;
+window.fetch = async function (url, options = {}) {
+    const token = localStorage.getItem('jwtToken') || sessionStorage.getItem('jwtToken');
+    if (url.toString().includes('/api/')) {
+        options.headers = options.headers || {};
+        if (token) {
+            if (options.headers instanceof Headers) {
+                options.headers.set('Authorization', 'Bearer ' + token);
+            } else {
+                options.headers['Authorization'] = 'Bearer ' + token;
+            }
+        }
+    }
+    const response = await originalFetch(url, options);
+    if (response.status === 401 || response.status === 403) {
+        console.warn('Unauthorized request');
+    }
+    return response;
+};
+
 
 // PWA Install Logic
 let deferredPrompt;
@@ -29,14 +50,14 @@ const notifSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2
 let audioUnlocked = false;
 function unlockAudio() {
     if (audioUnlocked) return;
-    
+
     // Play silent sound to unlock Audio context
     notifSound.volume = 0;
     notifSound.play().then(() => {
         notifSound.pause();
         notifSound.currentTime = 0;
         notifSound.volume = 1;
-    }).catch(() => {});
+    }).catch(() => { });
 
     // Speak empty string to unlock SpeechSynthesis context
     if ('speechSynthesis' in window) {
@@ -44,7 +65,7 @@ function unlockAudio() {
         msg.volume = 0;
         window.speechSynthesis.speak(msg);
     }
-    
+
     audioUnlocked = true;
     document.removeEventListener('touchstart', unlockAudio);
     document.removeEventListener('click', unlockAudio);
@@ -193,6 +214,39 @@ function showCustomAlert(text) {
 
 function showCustomConfirm(title, text) {
     return showCustomModal(title, text, true);
+}
+
+function createConfettiBurst() {
+    const colors = ['#6366f1', '#a855f7', '#22c55e', '#eab308', '#ef4444'];
+    for (let i = 0; i < 80; i++) {
+        const conf = document.createElement('div');
+        conf.className = 'confetti';
+        conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        conf.style.left = '50%';
+        conf.style.top = '40%';
+        document.body.appendChild(conf);
+
+        const angle = Math.random() * Math.PI * 2;
+        const velocity = 4 + Math.random() * 12;
+        let vx = Math.cos(angle) * velocity;
+        let vy = Math.sin(angle) * velocity;
+        let posX = 0;
+        let posY = 0;
+
+        const move = () => {
+            posX += vx;
+            posY += vy;
+            vy += 0.4; // gravity
+            vx *= 0.98; // friction
+            conf.style.transform = `translate(${posX}px, ${posY}px) rotate(${posX * 3}deg)`;
+            if (posY < window.innerHeight) {
+                requestAnimationFrame(move);
+            } else {
+                conf.remove();
+            }
+        };
+        requestAnimationFrame(move);
+    }
 }
 
 // App Data (Will be synced with Backend)
@@ -414,6 +468,7 @@ async function handleLoginV2() {
         const result = await response.json();
 
         if (result.success) {
+            const jwtToken = result.token;
             const foundUser = result.user;
             isAdmin = foundUser.role === 'admin';
             isTeacher = foundUser.role === 'teacher';
@@ -434,6 +489,10 @@ async function handleLoginV2() {
             // Actually user said "always ask when site opens", so I won't auto-login anyway.
             if (document.getElementById('remember-me-v2').checked) {
                 localStorage.setItem('userSession', JSON.stringify(foundUser));
+                localStorage.setItem('jwtToken', jwtToken);
+            } else {
+                sessionStorage.setItem('userSession', JSON.stringify(foundUser));
+                sessionStorage.setItem('jwtToken', jwtToken);
             }
 
             document.getElementById('login-screen-v2').classList.add('hidden');
@@ -446,13 +505,13 @@ async function handleLoginV2() {
             updateHeaderScore();
             updateNotifBadge();
             renderBottomNav();
-            
+
             if (isAdmin) currentSection = 'admin';
             else currentSection = 'home';
 
             renderSection();
             checkNotifPermission();
-            
+
             // UI adjustments
             const topProfileBtn = document.getElementById('profile-btn');
             if (topProfileBtn) {
@@ -471,37 +530,13 @@ async function handleLoginV2() {
         console.error("Login xatosi:", error);
         showCustomAlert("Server bilan bog'lanishda xato!");
     }
-}
-
-function initSocketListeners() {
-    socket.on('dataUpdate', async (data) => {
-        const { users: fetchedUsers = [], schedules = [], ...appData } = data;
-        APP_DATA = { ...APP_DATA, ...appData, users: fetchedUsers, schedules: schedules };
-
-        // Sync current user's stats from server in real-time
-        if (APP_DATA.user && APP_DATA.user.username) {
-            const currentServerUser = fetchedUsers.find(u => u.user === APP_DATA.user.username);
-            if (currentServerUser) {
-                APP_DATA.user.score = currentServerUser.score || 0;
-                APP_DATA.user.testsTaken = currentServerUser.testsTaken || 0;
-                APP_DATA.user.completedTests = currentServerUser.completedTests || {};
-                updateHeaderScore();
-            }
-        }
-
-        // Re-render if not in a form or test or showing results
-        if (!testState.active && !testState.showingResults && !currentSection.includes('Form')) {
-            renderSection();
-        }
-    });
-
     const handleNewNotif = (notif) => {
         // Double check filter
         if (notif.role === 'admin' && !isAdmin) return;
 
         APP_DATA.notifications.unshift(notif);
         updateNotifBadge();
-        
+
         // Play notification sound
         if (notifSound) {
             notifSound.play().catch(err => console.log("Sound play blocked:", err));
@@ -527,6 +562,30 @@ function initSocketListeners() {
     }
 }
 
+function initSocketListeners() { }
+socket.on('dataUpdate', async (data) => {
+    const { users: fetchedUsers = [], schedules = [], ...appData } = data;
+    APP_DATA = { ...APP_DATA, ...appData, users: fetchedUsers, schedules: schedules };
+
+    // Sync current user's stats from server in real-time
+    if (APP_DATA.user && APP_DATA.user.username) {
+        const currentServerUser = fetchedUsers.find(u => u.user === APP_DATA.user.username);
+        if (currentServerUser) {
+            APP_DATA.user.score = currentServerUser.score || 0;
+            APP_DATA.user.testsTaken = currentServerUser.testsTaken || 0;
+            APP_DATA.user.completedTests = currentServerUser.completedTests || {};
+            APP_DATA.user.avatar = currentServerUser.avatar || '';
+            updateHeaderScore();
+        }
+    }
+
+    // Re-render if not in a form or test or showing results
+    if (!testState.active && !testState.showingResults && !currentSection.includes('Form')) {
+        renderSection();
+    }
+});
+
+
 function updateHeaderScore() {
     const el = document.getElementById('header-score');
     const balanceBox = document.getElementById('user-balance');
@@ -544,9 +603,9 @@ function updateNotifBadge() {
     const badges = document.querySelectorAll('.notif-badge');
     const user = APP_DATA.user;
     if (!user) return;
-    
+
     const currentUser = user.user || user.username;
-    
+
     const count = APP_DATA.notifications.filter(n => {
         if (n.read) return false;
         // Count if it's an announcement OR if it's for this specific user
@@ -608,9 +667,12 @@ async function handleLogout() {
     if (quit) {
         isAdmin = false;
         isTeacher = false;
-        
+
         // Clear session
         localStorage.removeItem('userSession');
+        localStorage.removeItem('jwtToken');
+        sessionStorage.removeItem('userSession');
+        sessionStorage.removeItem('jwtToken');
 
         // Clear inputs
         const u1 = document.getElementById('username');
@@ -632,7 +694,7 @@ async function handleLogout() {
         // Reset app content
         const appContent = document.getElementById('app-content');
         if (appContent) appContent.innerHTML = '';
-        
+
         currentSection = 'home';
     }
 }
@@ -742,7 +804,7 @@ function getTeacherAnalyticsHTML() {
     const questionsCount = subject.questions ? subject.questions.length : 0;
     const students = APP_DATA.users.filter(u => u.role === 'student');
     const avgScore = students.length > 0 ? (students.reduce((acc, u) => acc + (u.score || 0), 0) / students.length).toFixed(1) : 0;
-    
+
     const topStudents = [...students].sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 5);
 
     return `
@@ -788,7 +850,7 @@ function getTeacherAnalyticsHTML() {
 function renderTeacher(container) {
     const teacherSubjectId = APP_DATA.user.subject;
     const subject = APP_DATA.subjects.find(s => s.id === teacherSubjectId);
-    
+
     if (!subject) {
         container.innerHTML = `<div class="glass-card" style="padding:20px; text-align:center;">
             <p>Sizga fan biriktirilmagan. Iltimos admin bilan bog'laning.</p>
@@ -849,7 +911,7 @@ function renderTeacher(container) {
                                 </select>
                                 <textarea id="t-q-text" placeholder="Savol matni..." style="width:100%; height:80px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; padding: 10px; border-radius: 10px; font-size: 0.85rem; resize: none;"></textarea>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                                    ${[1, 2, 3, 4].map(num => `<input type="text" id="t-q-opt${num}" placeholder="${String.fromCharCode(64+num)}-variant" style="width:100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; padding: 8px; border-radius: 8px; font-size: 0.8rem;">`).join('')}
+                                    ${[1, 2, 3, 4].map(num => `<input type="text" id="t-q-opt${num}" placeholder="${String.fromCharCode(64 + num)}-variant" style="width:100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; padding: 8px; border-radius: 8px; font-size: 0.8rem;">`).join('')}
                                 </div>
                                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
                                     ${[0, 1, 2, 3].map(val => `<button onclick="selectCorrectVariant(${val})" id="variant-btn-${val}" class="variant-select-btn ${val === 0 ? 'active' : ''}" style="padding: 8px; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: white; cursor: pointer; font-weight: 700;">${String.fromCharCode(65 + val)}</button>`).join('')}
@@ -1114,7 +1176,7 @@ async function renderTeacherView(view, param) {
                                 <div style="margin-bottom: 8px;">
                                     <select id="subj-${s.user}" style="width:100%; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: white; padding: 8px; border-radius: 8px; font-size: 0.8rem;">
                                         <option value="" style="background:#1a1a2e;">Fan tanlang...</option>
-                                        ${(APP_DATA.subjects||[]).map(sub => `<option value="${sub.id}" style="background:#1a1a2e;">${sub.name}</option>`).join('')}
+                                        ${(APP_DATA.subjects || []).map(sub => `<option value="${sub.id}" style="background:#1a1a2e;">${sub.name}</option>`).join('')}
                                     </select>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -1363,8 +1425,8 @@ window.switchMemberTab = (tab) => {
 
 function renderMembersList(usersList) {
     const q = MEMBER_STATE.searchQuery.toLowerCase();
-    
-    let filtered = usersList.filter(u => 
+
+    let filtered = usersList.filter(u =>
         (u.name.toLowerCase().includes(q) || u.user.toLowerCase().includes(q))
     );
 
@@ -1373,7 +1435,7 @@ function renderMembersList(usersList) {
         return renderSimpleUsersList(filtered);
     } else {
         filtered = filtered.filter(u => u.role === 'student');
-        
+
         // Group students by class
         const groups = {};
         filtered.forEach(u => {
@@ -1383,7 +1445,7 @@ function renderMembersList(usersList) {
         });
 
         const sortedClasses = Object.keys(groups).sort();
-        
+
         if (sortedClasses.length === 0) return '<p style="text-align:center; padding: 40px; color: var(--text-muted);">O\'quvchilar topilmadi</p>';
 
         return sortedClasses.map(cls => `
@@ -1417,9 +1479,15 @@ function renderSimpleUsersList(list) {
                     </div>
                 </div>
                 ${u.user !== 'admin' ? `
-                    <button onclick="deleteMember('${u.user}')" style="background: rgba(239,68,68,0.05); color: #ef4444; border: none; padding: 8px; border-radius: 10px; cursor: pointer; transition: all 0.2s;">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
+                    
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="resetUserPassword('${u.user}')" style="background: rgba(99,102,241,0.05); color: #6366f1; border: none; padding: 8px; border-radius: 10px; cursor: pointer; transition: all 0.2s;" title="Parolni yangilash">
+                            <i class="fa-solid fa-key"></i>
+                        </button>
+                        <button onclick="deleteMember('${u.user}')" style="background: rgba(239,68,68,0.05); color: #ef4444; border: none; padding: 8px; border-radius: 10px; cursor: pointer; transition: all 0.2s;" title="O'chirish">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
                 ` : '<span style="font-size: 0.65rem; color: #22c55e; background: rgba(34,197,94,0.1); padding: 2px 6px; border-radius: 5px;">Tizim Admini</span>'}
             </div>
             
@@ -1464,6 +1532,28 @@ window.deleteMember = async (username) => {
     } catch (err) {
         console.error("Failed to delete user", err);
         showCustomAlert("O'chirishda xatolik yuz berdi");
+    }
+};
+
+window.resetUserPassword = async (username) => {
+    const newPass = prompt(`${username} uchun yangi parolni kiriting:`, "123456");
+    if (!newPass) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/update-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, newPassword: newPass })
+        });
+        const result = await response.json();
+        if (result.success) {
+            showCustomAlert(`${username} paroli muvaffaqiyatli o'zgartirildi: ${newPass}`);
+        } else {
+            showCustomAlert(result.message || "Xatolik yuz berdi");
+        }
+    } catch (err) {
+        console.error("Failed to reset password", err);
+        showCustomAlert("Server bilan bog'lanishda xato");
     }
 };
 
@@ -1751,11 +1841,11 @@ function renderNotifications(container) {
         }
         NOTIF_STATE.currentView = 'list';
     }
-    
+
     // Filter logic
     const currentUser = user.user || user.username;
     console.log("Current user for filtering:", currentUser);
-    
+
     let filtered = APP_DATA.notifications.filter(n => {
         const isAdminNotif = !n.to && (!n.role || n.role !== 'student');
         const isPrivateNotif = n.to === currentUser;
@@ -1763,7 +1853,7 @@ function renderNotifications(container) {
         if (NOTIF_STATE.activeTab === 'admin' && isAdminNotif) return true;
         // Private notifications (ball, test results) in 'private' tab
         if (NOTIF_STATE.activeTab === 'private' && isPrivateNotif) return true;
-        
+
         return false;
     });
 
@@ -1852,7 +1942,7 @@ window.setNotifFilter = (filter) => {
 
 function renderNotificationDetail(container, notif) {
     const sender = NOTIF_STATE.activeTab === 'admin' ? 'Maktab Ma\'muriyati' : 'Tizim Bildirishi';
-    
+
     container.innerHTML = `
         <div class="notif-premium-container fade-in">
             <div class="profile-top-bar" style="margin-bottom: 25px;">
@@ -1905,7 +1995,7 @@ window.openNotification = async (id) => {
         notif.read = true;
         try {
             await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
-        } catch (e) {}
+        } catch (e) { }
         updateNotifBadge();
     }
 
@@ -1919,9 +2009,9 @@ window.closeNotification = () => {
 };
 
 window.deleteNotif = async (e, id) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     console.log("Delete button clicked for ID:", id);
-    
+
     const confirm = await showCustomConfirm("Xabarni o'chirish", "Ushbu xabarni o'chirib tashlamoqchimisiz?");
     if (!confirm) {
         console.log("Deletion cancelled by user");
@@ -1932,7 +2022,7 @@ window.deleteNotif = async (e, id) => {
         console.log("Sending DELETE request to:", `${API_BASE}/notifications/${id}`);
         const response = await fetch(`${API_BASE}/notifications/${id}`, { method: 'DELETE' });
         console.log("Response status:", response.status);
-        
+
         if (response.ok) {
             const result = await response.json();
             console.log("Delete result:", result);
@@ -2090,11 +2180,11 @@ async function addNewQuestionByTeacher(subjectId) {
         return;
     }
 
-    const question = { 
-        q: text, 
-        options, 
-        correct, 
-        targetClass, 
+    const question = {
+        q: text,
+        options,
+        correct,
+        targetClass,
         author: APP_DATA.user.username || APP_DATA.user.user,
         timestamp: Date.now()
     };
@@ -2142,14 +2232,17 @@ window.switchTestSubTab = (tab) => {
     const listArea = document.getElementById('t-list-area');
 
     if (tab === 'add') {
-        listBtnActual.style.color = 'var(--text-muted)';
+        addBtn.style.background = 'var(--primary)';
+        addBtn.style.color = 'white';
+        listBtn.style.background = 'transparent';
+        listBtn.style.color = 'var(--text-muted)';
         formArea.classList.remove('hidden');
         listArea.classList.add('hidden');
     } else {
-        listBtnActual.style.background = 'var(--primary)';
-        listBtnActual.style.color = 'white';
-        addBtnActual.style.background = 'transparent';
-        addBtnActual.style.color = 'var(--text-muted)';
+        listBtn.style.background = 'var(--primary)';
+        listBtn.style.color = 'white';
+        addBtn.style.background = 'transparent';
+        addBtn.style.color = 'var(--text-muted)';
         listArea.classList.remove('hidden');
         formArea.classList.add('hidden');
     }
@@ -2391,60 +2484,60 @@ function renderHome(container) {
 
 function renderDiary(container) {
     // ── helpers ──────────────────────────────────────────────
-    const MONTHS   = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
-    const DAY_SHORT = ['Ya','Du','Se','Ch','Pa','Ju','Sh'];
-    const DAY_FULL  = ['Yakshanba','Dushanba','Seshanba','Chorshanba','Payshanba','Juma','Shanba'];
-    const DAY_KEYS  = ['yakshanba','dushanba','seshanba','chorshanba','payshanba','juma','shanba'];
-    const TIMES     = ['08:00 – 08:45','08:55 – 09:40','09:45 – 10:30','10:40 – 11:25','11:35 – 12:20','12:25 – 13:10','13:15 – 14:00'];
-    const ICONS     = {
-        'matematika':'#6366f1','ona tili':'#f59e0b','ingliz tili':'#22c55e',
-        'rus tili':'#ef4444','tarix':'#8b5cf6','informatika':'#3b82f6',
-        'fizika':'#a855f7','kimyo':'#ef4444','biologiya':'#84cc16',
-        'geografiya':'#06b6d4','adabiyot':'#f97316','jismoniy':'#10b981',
-        'musiqa':'#ec4899','huquq':'#78716c','texnologiya':'#64748b','tarbiya':'#ec4899'
+    const MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+    const DAY_SHORT = ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh'];
+    const DAY_FULL = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
+    const DAY_KEYS = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'];
+    const TIMES = ['08:00 – 08:45', '08:55 – 09:40', '09:45 – 10:30', '10:40 – 11:25', '11:35 – 12:20', '12:25 – 13:10', '13:15 – 14:00'];
+    const ICONS = {
+        'matematika': '#6366f1', 'ona tili': '#f59e0b', 'ingliz tili': '#22c55e',
+        'rus tili': '#ef4444', 'tarix': '#8b5cf6', 'informatika': '#3b82f6',
+        'fizika': '#a855f7', 'kimyo': '#ef4444', 'biologiya': '#84cc16',
+        'geografiya': '#06b6d4', 'adabiyot': '#f97316', 'jismoniy': '#10b981',
+        'musiqa': '#ec4899', 'huquq': '#78716c', 'texnologiya': '#64748b', 'tarbiya': '#ec4899'
     };
-    function iconColor(name){ const k=Object.keys(ICONS).find(k=>name.toLowerCase().includes(k)); return k?ICONS[k]:'#6366f1'; }
-    function iconLetter(name){ return name.trim().slice(0,2).toUpperCase(); }
-    function gradeInfo(p){ if(p>=5)return{c:'#22c55e',bg:'rgba(34,197,94,0.15)',t:"A'lo"};if(p>=4)return{c:'#f59e0b',bg:'rgba(245,158,11,0.15)',t:'Yaxshi'};if(p>=3)return{c:'#f97316',bg:'rgba(249,115,22,0.15)',t:'Qoniqarli'};return{c:'#ef4444',bg:'rgba(239,68,68,0.15)',t:'Past'}; }
-    function weekMonday(d){ const x=new Date(d); const day=x.getDay(); x.setDate(x.getDate()-(day===0?6:day-1)); return x; }
-    function sameDay(a,b){ return a.toDateString()===b.toDateString(); }
-    function fmtDate(d){ return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${d.getFullYear()}`; }
+    function iconColor(name) { const k = Object.keys(ICONS).find(k => name.toLowerCase().includes(k)); return k ? ICONS[k] : '#6366f1'; }
+    function iconLetter(name) { return name.trim().slice(0, 2).toUpperCase(); }
+    function gradeInfo(p) { if (p >= 5) return { c: '#22c55e', bg: 'rgba(34,197,94,0.15)', t: "A'lo" }; if (p >= 4) return { c: '#f59e0b', bg: 'rgba(245,158,11,0.15)', t: 'Yaxshi' }; if (p >= 3) return { c: '#f97316', bg: 'rgba(249,115,22,0.15)', t: 'Qoniqarli' }; return { c: '#ef4444', bg: 'rgba(239,68,68,0.15)', t: 'Past' }; }
+    function weekMonday(d) { const x = new Date(d); const day = x.getDay(); x.setDate(x.getDate() - (day === 0 ? 6 : day - 1)); return x; }
+    function sameDay(a, b) { return a.toDateString() === b.toDateString(); }
+    function fmtDate(d) { return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${d.getFullYear()}`; }
 
     // ── state ─────────────────────────────────────────────────
     const user = APP_DATA.user;
-    const uname = user.username||user.user;
-    const su = (APP_DATA.users||[]).find(u=>u.user===uname);
-    const grades = su&&su.grades ? su.grades : [];
+    const uname = user.username || user.user;
+    const su = (APP_DATA.users || []).find(u => u.user === uname);
+    const grades = su && su.grades ? su.grades : [];
     window._dD = new Date();
 
-    function getSubjects(dayKey){
-        if(!APP_DATA.schedules) return [];
-        const sch = APP_DATA.schedules.find(s=>s.class===user.class);
-        if(!sch||!sch.days[dayKey]) return [];
-        return sch.days[dayKey].split('\n').filter(s=>s.trim());
+    function getSubjects(dayKey) {
+        if (!APP_DATA.schedules) return [];
+        const sch = APP_DATA.schedules.find(s => s.class === user.class);
+        if (!sch || !sch.days[dayKey]) return [];
+        return sch.days[dayKey].split('\n').filter(s => s.trim());
     }
-    function getTeacher(subj){
-        const teachers = (APP_DATA.users||[]).filter(u=>u.role==='teacher');
-        const t = teachers.find(u=>{
-            if(u.class&&u.class.toLowerCase().includes(subj.toLowerCase().split(' ')[0])) return true;
-            if(u.subject){
-                const s=(APP_DATA.subjects||[]).find(x=>x.id===u.subject);
-                if(s&&s.name&&s.name.toLowerCase()===subj.toLowerCase()) return true;
+    function getTeacher(subj) {
+        const teachers = (APP_DATA.users || []).filter(u => u.role === 'teacher');
+        const t = teachers.find(u => {
+            if (u.class && u.class.toLowerCase().includes(subj.toLowerCase().split(' ')[0])) return true;
+            if (u.subject) {
+                const s = (APP_DATA.subjects || []).find(x => x.id === u.subject);
+                if (s && s.name && s.name.toLowerCase() === subj.toLowerCase()) return true;
             }
             return false;
         });
-        if(t){ const p=t.name.split(' '); return p[0][0]+'. '+p.slice(1).join(' '); }
+        if (t) { const p = t.name.split(' '); return p[0][0] + '. ' + p.slice(1).join(' '); }
         return '—';
     }
-    function getGradeForSubjDate(subj, dateStr){
+    function getGradeForSubjDate(subj, dateStr) {
         const name = subj.trim().toLowerCase();
-        if(name.length < 3) return null;
-        return grades.find(g=>{
-            if(g.date !== dateStr) return false;
+        if (name.length < 3) return null;
+        return grades.find(g => {
+            if (g.date !== dateStr) return false;
             // First try exact subjectName match
-            if(g.subjectName && g.subjectName.toLowerCase() === name) return true;
+            if (g.subjectName && g.subjectName.toLowerCase() === name) return true;
             // Fallback: match by label
-            if(g.label){
+            if (g.label) {
                 const label = g.label.toLowerCase();
                 return label === name || label.includes(name);
             }
@@ -2453,24 +2546,24 @@ function renderDiary(container) {
     }
 
     // ── render week content ───────────────────────────────────
-    function renderContent(){
+    function renderContent() {
         const sel = window._dD;
         const mon = weekMonday(sel);
-        const days = Array.from({length:7},(_,i)=>{ const d=new Date(mon); d.setDate(mon.getDate()+i); return d; });
+        const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(mon); d.setDate(mon.getDate() + i); return d; });
         const sun = days[6];
         const weekLabel = `${mon.getDate()} — ${sun.getDate()} ${MONTHS[sun.getMonth()].toLowerCase()} ${sun.getFullYear()}`;
 
-        const pillsHtml = days.map(d=>{
+        const pillsHtml = days.map(d => {
             const dw = d.getDay();
-            const active = sameDay(d,sel);
+            const active = sameDay(d, sel);
             return `<div onclick="window._dD=new Date(${d.getFullYear()},${d.getMonth()},${d.getDate()});renderDiaryContent()"
                 style="flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 2px;border-radius:14px;cursor:pointer;
-                       background:${active?'linear-gradient(135deg,#2563eb,#1d4ed8)':'rgba(255,255,255,0.06)'};
-                       color:${active?'white':'var(--text-muted)'};
-                       box-shadow:${active?'0 4px 14px rgba(37,99,235,0.4)':'none'};transition:all 0.2s;">
+                       background:${active ? 'linear-gradient(135deg,#2563eb,#1d4ed8)' : 'rgba(255,255,255,0.06)'};
+                       color:${active ? 'white' : 'var(--text-muted)'};
+                       box-shadow:${active ? '0 4px 14px rgba(37,99,235,0.4)' : 'none'};transition:all 0.2s;">
                 <span style="font-size:0.6rem;font-weight:600;margin-bottom:3px;">${DAY_SHORT[dw]}</span>
                 <span style="font-size:0.95rem;font-weight:800;">${d.getDate()}</span>
-                <span style="font-size:0.55rem;margin-top:2px;opacity:0.7;">${MONTHS[d.getMonth()].slice(0,3)}</span>
+                <span style="font-size:0.55rem;margin-top:2px;opacity:0.7;">${MONTHS[d.getMonth()].slice(0, 3)}</span>
             </div>`;
         }).join('');
 
@@ -2484,33 +2577,34 @@ function renderDiary(container) {
         const selMonth = sel.getMonth(); // 0-indexed (4=May, 8=Sep)
         const selDate = sel.getDate();
         const isVacation = (selMonth === 4 && selDate >= 25) || (selMonth >= 5 && selMonth <= 7) || (selMonth === 8 && selDate <= 4);
-        if(isVacation){
+        if (isVacation) {
             tableHtml = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
                 <i class="fa-solid fa-umbrella-beach" style="font-size:2.5rem;color:#fbbf24;display:block;margin-bottom:12px;"></i>
                 <p style="font-weight:700;font-size:1.05rem;color:#fbbf24;">☀️ Yozgi ta'til!</p>
                 <p style="font-size:0.82rem;margin-top:6px;">25-Maydan 4-Sentyabrgacha darslar bo'lmaydi.</p>
                 <p style="font-size:0.75rem;margin-top:4px;">Yaxshi dam oling! 🏖️</p></div>`;
-        } else if(dw===0){
+        } else if (dw === 0) {
             tableHtml = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
                 <i class="fa-solid fa-sun" style="font-size:2.5rem;color:#fbbf24;display:block;margin-bottom:12px;"></i>
                 <p style="font-weight:600;">Dam olish kuni</p><p style="font-size:0.8rem;">Yakshanba kuni darslar yo'q</p></div>`;
-        } else if(!subjects.length){
+        } else if (!subjects.length) {
             tableHtml = `<div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
                 <i class="fa-solid fa-calendar-xmark" style="font-size:2.5rem;display:block;margin-bottom:12px;"></i>
                 <p style="font-weight:600;">Jadval kiritilmagan</p></div>`;
         } else {
-            const rows = subjects.map((subj,i)=>{
-                const ic=iconColor(subj); const il=iconLetter(subj);
-                const teacher=getTeacher(subj);
-                const time=TIMES[i]||'';
-                const ge=getGradeForSubjDate(subj,dateStr);
-                let gradeCell='';
-                if(ge){ const gi=gradeInfo(ge.points);
-                    gradeCell=`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+            const rows = subjects.map((subj, i) => {
+                const ic = iconColor(subj); const il = iconLetter(subj);
+                const teacher = getTeacher(subj);
+                const time = TIMES[i] || '';
+                const ge = getGradeForSubjDate(subj, dateStr);
+                let gradeCell = '';
+                if (ge) {
+                    const gi = gradeInfo(ge.points);
+                    gradeCell = `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
                         <div style="width:34px;height:34px;border-radius:9px;background:${gi.bg};border:1.5px solid ${gi.c}40;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:${gi.c};">${ge.points}</div>
                         <span style="font-size:0.55rem;color:${gi.c};font-weight:700;">${gi.t}</span></div>`;
                 } else {
-                    gradeCell=`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                    gradeCell = `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
                         <div style="width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;font-size:0.9rem;color:var(--text-muted);">—</div>
                         <span style="font-size:0.5rem;color:var(--text-muted);">Baholanmagan</span></div>`;
                 }
@@ -2531,7 +2625,7 @@ function renderDiary(container) {
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                     <div style="display:flex;align-items:center;gap:8px;">
                         <i class="fa-regular fa-calendar-days" style="color:#2563eb;"></i>
-                        <span style="font-size:0.88rem;font-weight:700;">${sel.getDate()}-${MONTHS[dw<=0?0:dw-1]?'':''} ${MONTHS[sel.getMonth()].slice(0,3).toLowerCase()}, ${DAY_FULL[dw]}</span>
+                        <span style="font-size:0.88rem;font-weight:700;">${sel.getDate()}-${MONTHS[dw <= 0 ? 0 : dw - 1] ? '' : ''} ${MONTHS[sel.getMonth()].slice(0, 3).toLowerCase()}, ${DAY_FULL[dw]}</span>
                     </div>
                     <div style="background:rgba(255,255,255,0.08);padding:5px 11px;border-radius:10px;font-size:0.72rem;color:var(--text-muted);cursor:pointer;">
                         Barcha fanlar <i class="fa-solid fa-chevron-down" style="font-size:0.55rem;"></i>
@@ -2862,15 +2956,15 @@ function renderTest(container) {
         </div>
         <div class="test-grid" style="grid-template-columns: 1fr; gap: 15px;">
             ${availableSubjects.length > 0 ? availableSubjects.map(s => {
-                const classQuestions = s.questions.filter(q => !q.targetClass || q.targetClass === 'all' || q.targetClass === APP_DATA.user.class);
-                const qCount = classQuestions.length;
-                const isLocked = qCount === 0;
-                const lastTaken = (APP_DATA.user.completedTests || {})[s.id] || 0;
-                const lastUpdated = s.lastUpdated || 0;
-                const isCompleted = lastTaken > lastUpdated;
-                const theme = subjectColors[s.id] || subjectColors['math'];
+        const classQuestions = s.questions.filter(q => !q.targetClass || q.targetClass === 'all' || q.targetClass === APP_DATA.user.class);
+        const qCount = classQuestions.length;
+        const isLocked = qCount === 0;
+        const lastTaken = (APP_DATA.user.completedTests || {})[s.id] || 0;
+        const lastUpdated = s.lastUpdated || 0;
+        const isCompleted = lastTaken > lastUpdated;
+        const theme = subjectColors[s.id] || subjectColors['math'];
 
-                return `
+        return `
                         <div class="glass-card" onclick="${!isLocked && !isCompleted ? `startTest('${s.id}')` : ''}" style="display: flex; align-items: center; gap: 20px; padding: 18px; cursor: ${isLocked || isCompleted ? 'default' : 'pointer'}; background: ${theme.bg}; border: 1px solid ${theme.border}; opacity: ${isLocked ? '0.6' : '1'}; transition: transform 0.2s;">
                             <div style="width: 55px; height: 55px; border-radius: 18px; background: ${theme.iconBg}; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; box-shadow: 0 8px 20px ${theme.shadow};">
                                 <i class="fa-solid ${s.icon}"></i>
@@ -2886,7 +2980,7 @@ function renderTest(container) {
                             ${!isLocked && !isCompleted ? `<i class="fa-solid fa-play" style="color: #6366f1; font-size: 1.1rem;"></i>` : ''}
                         </div>
                     `;
-            }).join('') : `<p style="text-align:center; color:var(--text-muted); padding:20px;">Sizning sinfingiz uchun testlar mavjud emas.</p>`}
+    }).join('') : `<p style="text-align:center; color:var(--text-muted); padding:20px;">Sizning sinfingiz uchun testlar mavjud emas.</p>`}
         </div>
     `;
 }
@@ -2897,7 +2991,7 @@ async function startTest(subjectId) {
 
     // Filter questions for the student's class
     const filteredQuestions = subject.questions.filter(q => !q.targetClass || q.targetClass === 'all' || q.targetClass === APP_DATA.user.class);
-    
+
     if (filteredQuestions.length === 0) return;
 
     // Check if test was already completed for this version
@@ -3086,7 +3180,11 @@ async function buyGift(giftId) {
                 await fetch(`${API_BASE}/user/score`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: APP_DATA.user.username, scoreDelta: -gift.points })
+                    body: JSON.stringify({ 
+                        username: APP_DATA.user.username, 
+                        scoreDelta: -gift.points,
+                        reason: 'gift' 
+                    })
                 });
 
                 // Send notification to admin (system-wide)
@@ -3105,6 +3203,7 @@ async function buyGift(giftId) {
                 });
 
                 await fetchData();
+                createConfettiBurst();
                 showCustomAlert("Tabriklaymiz! 🎉\nSovg'a muvaffaqiyatli xarid qilindi. Uni olish uchun maktab mas'ullariga murojaat qiling.");
                 renderSection();
             } catch (error) {
@@ -3335,12 +3434,12 @@ function renderProfile(container) {
 async function changePassword() {
     const oldPassword = document.getElementById('p-old-pass').value;
     const newPassword = document.getElementById('p-new-pass').value;
-    
+
     if (!oldPassword || !newPassword) {
         showCustomAlert("Iltimos, ikkala parolni ham kiriting!");
         return;
     }
-    
+
     if (newPassword.length < 4) {
         showCustomAlert("Yangi parol kamida 4 ta belgidan iborat bo'lishi kerak!");
         return;
@@ -3362,10 +3461,10 @@ async function changePassword() {
             showCustomAlert(result.message);
             document.getElementById('p-old-pass').value = '';
             document.getElementById('p-new-pass').value = '';
-            
+
             // Update local user data
             APP_DATA.user.pass = newPassword;
-            
+
             // Update session
             const session = localStorage.getItem('userSession');
             if (session) {
@@ -3384,7 +3483,7 @@ async function changePassword() {
 
 async function handleAvatarUpload(input) {
     if (!input.files || !input.files[0]) return;
-    
+
     const file = input.files[0];
     if (file.size > 2 * 1024 * 1024) {
         showCustomAlert("Rasm hajmi 2MB dan oshmasligi kerak!");
@@ -3461,11 +3560,11 @@ window.onload = async () => {
     await fetchData();
 
     // Check for existing session
-    const savedSession = localStorage.getItem('userSession');
+    const savedSession = localStorage.getItem('userSession') || sessionStorage.getItem('userSession');
     if (savedSession) {
         try {
             const foundUser = JSON.parse(savedSession);
-            
+
             // Re-sync user data with latest from server (fetchData already called)
             const serverUser = APP_DATA.users.find(u => u.user === (foundUser.user || foundUser.username));
             const userToUse = serverUser || foundUser;
@@ -3494,7 +3593,7 @@ window.onload = async () => {
             updateHeaderScore();
             updateNotifBadge();
             renderBottomNav();
-            
+
             if (isAdmin) currentSection = 'admin';
             else currentSection = 'home';
             renderSection();
@@ -3513,6 +3612,9 @@ window.onload = async () => {
         } catch (e) {
             console.error("Session restore error:", e);
             localStorage.removeItem('userSession');
+            sessionStorage.removeItem('userSession');
+            localStorage.removeItem('jwtToken');
+            sessionStorage.removeItem('jwtToken');
             if (welcomeScreen) welcomeScreen.classList.remove('hidden');
         }
     } else {
@@ -3535,19 +3637,19 @@ window.onload = async () => {
 
             const circumference = 2 * Math.PI * 54;
             let progress = 0;
-            
+
             const interval = setInterval(() => {
                 // Slower at the end
                 const inc = progress > 80 ? 1 : Math.floor(Math.random() * 4) + 2;
                 progress += inc;
-                
+
                 if (progress >= 100) {
                     progress = 100;
                     clearInterval(interval);
-                    
+
                     percentText.innerText = progress;
                     progressCircle.style.strokeDashoffset = 0;
-                    
+
                     setTimeout(() => {
                         loadingScreen.style.opacity = '0';
                         setTimeout(() => {
